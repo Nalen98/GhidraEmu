@@ -16,9 +16,13 @@ Plugin allows you to easily dealing with native pcode emulator. No scripts anymo
   * Hook some libc functions (but it is still poor)
 
  ## What it can't
-  * Step in external library functions (emuHelper restrictions, can't get access to one program space from another)
+  * Step in external library functions (emuHelper restrictions)
   * Syscall emulation
   
+ ## All plugin windows in one set
+  
+![GhidraEmu](./images/Finished.png)
+ 
 # Features
   
 ### Menu window
@@ -28,11 +32,11 @@ Contains all plugin's windows - Stack view, Registers, Breakpoints view and main
   
 ### Popup window
 Contains hotkeys for setting start and end addresses of emulation, breakpoints and applying changed bytes to emulator.
-  stack, 
+
   ![GhidraEmu popup](./images/popup_menu.png)
  
  #### Register view
-Set as link register (green arrow) will help emulator let it know which register contatins return address. Plugin knows how it goes via stack, lr register, AARCH64 and mips registers. If you have an exotic one, select link register and press the button.
+Change registers as you want. Setting as link register (green arrow) will help emulator let it know which register contatins return address. Plugin knows how it goes via stack, lr register, AARCH64 and mips registers. If you have an exotic one, select link register and press the button.
  
  <img src="/images/Registers.gif"/>
  
@@ -59,7 +63,7 @@ Here plugin prints output information.
   
 - Download Release version of extension and install it in Ghidra `File → Install Extensions...` 
 - Use gradle to build extension: `GHIDRA_INSTALL_DIR=${GHIDRA_HOME} gradle` and use Ghidra to install it: `File → Install Extensions...` 
-
+- In CodeBrowser go to `File → Configure → Experimental` and select checkbox.
 
 
 
