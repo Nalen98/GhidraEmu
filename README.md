@@ -9,7 +9,7 @@ Plugin allows you to easily dealing with native pcode emulator. No scripts anymo
 ![GhidraEmu](./images/DEMO.gif)
  
 ## What can it do
-  * Work with all archs that ghidra supports, so you can add exotic processors and emulate them
+  * Work with all architectures that ghidra supports, so you can add exotic processors and emulate them
   * CPU context, stack and heap emualtion
   * Applying patched bytes from Ghidra
   * Breakpoints to control emualtion process
@@ -50,6 +50,7 @@ When you open your program in Сode browser GhidraEmu will mmap stack space auto
  <img src="/images/Breaks.gif"/>
  
 #### Apply patched bytes
+If you changed something, let emulator know about changed bytes.
  
  ![GhidraEmu apply patched bytes](./images/ApplyPatchedBytes.png) 
  
@@ -57,7 +58,10 @@ When you open your program in Сode browser GhidraEmu will mmap stack space auto
 Here plugin prints output information.
  
   ![GhidraEmu console](./images/Console.png)
-  
+ 
+## Future work  
+ 
+EmuHelper restrictions doesn't allow to use on program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't amulate it as one process with one memory space. Let me know if I'm missing something here. 
   
 # Installation
   
@@ -66,6 +70,7 @@ Here plugin prints output information.
 - In CodeBrowser go to `File → Configure → Experimental` and select checkbox.
 
 
+ 
 
 
 
