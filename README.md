@@ -19,13 +19,13 @@ Plugin allows you to easily dealing with native pcode emulator. No scripts anymo
   
 # Features
   
-  Menu window
+### Menu window
   
   ![GhidraEmu menu](./images/menu.png)
   
-  Popup window
+### Popup window
   
-  ![GhidraEmu popup](./images/popup.png)
+  ![GhidraEmu popup](./images/popup_menu.png)
   
   
 # Installation
