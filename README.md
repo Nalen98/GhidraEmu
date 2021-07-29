@@ -1,0 +1,2 @@
+# GhidraEmu
+Native Pcode emulator
