@@ -41,7 +41,7 @@ Change registers as you want. Setting as link register (green arrow) will help e
  <img src="/images/Registers.gif"/>
  
 #### Stack view
-When you open your program in Сode browser GhidraEmu will mmap stack space automaticaly. Stack pointer will be set at middle of stack space. It was done to allow you set values at top or bottom stack frames. Set your values as you want.
+When you open your program in Сode browser GhidraEmu will mmap stack space automaticaly. Stack pointer will be set at middle of stack space. It was done to allow you set values at top or bottom stack frames. Set your values as you want. Scroll it if you got some freezes on updating or reseting.
  
  <img src="/images/Stack.gif" width="320" height="250"/>
  
