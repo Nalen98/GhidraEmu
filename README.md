@@ -61,7 +61,7 @@ Here plugin prints output information.
  
 ## Future work  
  
-EmuHelper restrictions doesn't allow to use on program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't amulate it as one process with one memory space. Let me know if I'm missing something here. 
+EmuHelper restrictions doesn't allow to use on program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here. 
   
 # Installation
   
