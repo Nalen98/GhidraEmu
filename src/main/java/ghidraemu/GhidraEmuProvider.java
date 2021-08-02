@@ -142,11 +142,11 @@ public class GhidraEmuProvider extends ComponentProvider {
         	gl_panel.createParallelGroup(Alignment.TRAILING)
         		.addGroup(gl_panel.createSequentialGroup()
         			.addGap(32)
-        			.addComponent(RunBtn, GroupLayout.DEFAULT_SIZE, 95, Short.MAX_VALUE)
+        			.addComponent(RunBtn, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE)
         			.addGap(32)
-        			.addComponent(StepBtn, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-        			.addGap(30)
-        			.addComponent(ResetBtn, GroupLayout.DEFAULT_SIZE, 102, Short.MAX_VALUE)
+        			.addComponent(StepBtn, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE)
+        			.addGap(32)
+        			.addComponent(ResetBtn, GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE)
         			.addGap(66))
         		.addGroup(gl_panel.createSequentialGroup()
         			.addGap(58)
@@ -163,12 +163,11 @@ public class GhidraEmuProvider extends ComponentProvider {
         				.addComponent(panel_3, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
         				.addComponent(panel_4, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
         			.addGap(18)
-        			.addGroup(gl_panel.createParallelGroup(Alignment.LEADING)
-        				.addComponent(RunBtn)
-        				.addGroup(gl_panel.createParallelGroup(Alignment.BASELINE)
-        					.addComponent(StepBtn, GroupLayout.PREFERRED_SIZE, 26, GroupLayout.PREFERRED_SIZE)
-        					.addComponent(ResetBtn)))
-        			.addContainerGap(25, Short.MAX_VALUE))
+        			.addGroup(gl_panel.createParallelGroup(Alignment.LEADING, false)
+        				.addComponent(ResetBtn, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        				.addComponent(StepBtn, 0, 0, Short.MAX_VALUE)
+        				.addComponent(RunBtn, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        			.addContainerGap(19, Short.MAX_VALUE))
         );
         GridBagLayout gbl_panel_4 = new GridBagLayout();
         gbl_panel_4.columnWidths = new int[] {
@@ -324,7 +323,6 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     	
         if (StartTF.getText().matches("0x[0-9A-Fa-f]+") == false) {
-           // StartTF.setBorder(new LineBorder(Color.red, 1));
             return false;
         }
         StartTF.setBorder(ClassicBorder);
@@ -389,7 +387,6 @@ public class GhidraEmuProvider extends ComponentProvider {
 
         if (!StopTF.getText().equals("")) {
             if (StopTF.getText().matches("0x[0-9A-Fa-f]+") == false) {
-               // StopTF.setBorder(new LineBorder(Color.red, 1));
                 return;
             }
             StopTF.setBorder(ClassicBorder);
@@ -753,24 +750,22 @@ public class GhidraEmuProvider extends ComponentProvider {
         console.clearMessages();
     }
 
+    
     public void getExternalAddresses() {
         for (Symbol externalSymbol: program.getSymbolTable().getExternalSymbols()) {
             if (externalSymbol != null && externalSymbol.getSymbolType() == SymbolType.FUNCTION) {
                 Function f = (Function) externalSymbol.getObject();
                 Address[] thunkAddrs = f.getFunctionThunkAddresses();
-                if (knownFuncs.contains(f.getName())) {
-                    if (thunkAddrs.length == 1) {
+                if (thunkAddrs != null & thunkAddrs.length == 1) {
+                	if (knownFuncs.contains(f.getName())) {
                         ImplementedFuncs.add(new externalFunction(thunkAddrs[0], f));
-                    }
-                } else {
-                    if (thunkAddrs.length == 1) {
+                	} else {
                         unImplementedFuncs.add(new externalFunction(thunkAddrs[0], f));
                     }
                 }
             }
         }
     }
-
 
     public boolean checkForMalloc() {
 
@@ -833,7 +828,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-                console.addMessage(originator, "Heap allocated at 0x60000000. If you need more space go to Memory Map.");
+                console.addMessage(originator, "Heap allocated at 0x70000000. If you need more space go to Memory Map.");
             }
 
             try {
