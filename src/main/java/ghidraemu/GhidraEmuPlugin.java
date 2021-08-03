@@ -20,6 +20,9 @@ import byteviewerEmu.ProgramByteViewerComponentProviderEmu;
 import ghidra.app.ExamplesPluginPackage;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
+import ghidra.app.services.CodeViewerService;
+import ghidra.app.services.ConsoleService;
+import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.*;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.program.model.listing.Program;
@@ -34,7 +37,8 @@ import ghidra.program.util.ProgramLocation;
 		packageName = ExamplesPluginPackage.NAME,
 		category = PluginCategoryNames.ANALYSIS,
 		shortDescription = "Ghidra Emulator",
-		description = "Native pcode emulator"
+		description = "Native pcode emulator",
+		servicesRequired = { CodeViewerService.class, ConsoleService.class }
 	)
 //@formatter:on
 public class GhidraEmuPlugin extends ProgramPlugin {
@@ -46,11 +50,19 @@ public class GhidraEmuPlugin extends ProgramPlugin {
 	public ByteViewerPluginEmu bytePlugin;
 	public Program program;
 	public static GhidraEmuPopup popup; 
+	public CodeViewerService codeViewer;
+    	public ConsoleService console;
 	
 	public GhidraEmuPlugin(PluginTool tool) {
 		super(tool, true, true);
+	}
+
+	@Override
+	public void init() {
+		codeViewer = tool.getService(CodeViewerService.class);
+        	console = tool.getService(ConsoleService.class);
 		String pluginName = getName();
-		provider = new GhidraEmuProvider(this, pluginName);		
+		provider = new GhidraEmuProvider(this, pluginName);	
 		regprovider = new RegisterProvider(this, pluginName);	
 		bpprovider = new BreakpointProvider(this, pluginName);
 		bytePlugin = new ByteViewerPluginEmu(tool);
@@ -58,11 +70,6 @@ public class GhidraEmuPlugin extends ProgramPlugin {
 		stackprovider.setTitle("GhidraEmu Stack");
 		stackprovider.contextChanged(); 
 		createActions();
-	}
-
-	@Override
-	public void init() {
-		super.init();
 	}
 	
 	@Override
@@ -80,11 +87,11 @@ public class GhidraEmuPlugin extends ProgramPlugin {
 				stackprovider.goTo(program, location);
 			}
 		}
-    	}
+        }
 	
 	private void createActions() {    	
 	        popup = new GhidraEmuPopup(this, program);
-	    }
+	}
 	
 	@Override
 	protected void dispose() {		
