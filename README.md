@@ -9,7 +9,7 @@ Plugin allows you to easily dealing with native pcode emulator. No scripts anymo
 ![GhidraEmu](./images/DEMO.gif)
  
 ## What can it do
-  * Work with all architectures that ghidra supports, so you can add exotic processors and emulate them
+  * Work with all architectures that Ghidra supports, so you can add exotic processors and emulate them
   * CPU context, stack and heap emualtion
   * Applying patched bytes from Ghidra
   * Breakpoints to control emualtion process
@@ -22,6 +22,9 @@ Plugin allows you to easily dealing with native pcode emulator. No scripts anymo
  ## All plugin windows in one set
   
 ![GhidraEmu](./images/Finished.png)
+ 
+### Before you start
+Don't forget to analyze your program in Ghidra, emulator depends on it.
  
 # Features
   
