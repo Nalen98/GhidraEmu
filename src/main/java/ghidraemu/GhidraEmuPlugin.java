@@ -39,7 +39,6 @@ import ghidra.program.util.ProgramLocation;
 //@formatter:on
 public class GhidraEmuPlugin extends ProgramPlugin {
 	
-	
 	public GhidraEmuProvider provider;
 	public static RegisterProvider regprovider;
 	public static ProgramByteViewerComponentProviderEmu stackprovider;	
@@ -55,48 +54,43 @@ public class GhidraEmuPlugin extends ProgramPlugin {
 		regprovider = new RegisterProvider(this, pluginName);	
 		bpprovider = new BreakpointProvider(this, pluginName);
 		bytePlugin = new ByteViewerPluginEmu(tool);
-    	stackprovider = bytePlugin.getProvider();	
-    	stackprovider.setTitle("GhidraEmu Stack");
-    	stackprovider.contextChanged(); 
-    	createActions();
-    	
+		stackprovider = bytePlugin.getProvider();	
+		stackprovider.setTitle("GhidraEmu Stack");
+		stackprovider.contextChanged(); 
+		createActions();
 	}
 
 	@Override
 	public void init() {
 		super.init();
-
 	}
 	
 	@Override
-    protected void programActivated(Program p) {
-               
-        if (p != null) { 
-        	if (program == null) {
-        	program = p; 
-        	regprovider.setProgram(p);
-        	provider.setProgram(p);  
-        	popup.setProgram(p);   
-        	bpprovider.setProgram(p);  
-        	long stackOffset =
-    				(program.getMinAddress().getAddressSpace().getMaxAddress().getOffset() >>> 5) - 0x7fff;
-        	ProgramLocation location = new ProgramLocation(program, program.getAddressFactory().getAddress(Long.toHexString(stackOffset)));    
-    		stackprovider.goTo(program, location);
-    		provider.getExternalAddresses();
-        	}
-        }
-    }
+	protected void programActivated(Program p) {
+		if (p != null) { 
+			if (program == null) {
+				program = p; 
+				regprovider.setProgram(p);
+				provider.setProgram(p);  
+				popup.setProgram(p);   
+				bpprovider.setProgram(p);  
+				long stackOffset =
+						(program.getMinAddress().getAddressSpace().getMaxAddress().getOffset() >>> 5) - 0x7fff;
+				ProgramLocation location = new ProgramLocation(program, program.getAddressFactory().getAddress(Long.toHexString(stackOffset)));    
+				stackprovider.goTo(program, location);
+			}
+		}
+    	}
 	
-	 private void createActions() {    	
+	private void createActions() {    	
 	        popup = new GhidraEmuPopup(this, program);
 	    }
 	
-	 @Override
-		protected void dispose() {		
-			super.dispose();
-			if (!bytePlugin.isDisposed()) {	
-				bytePlugin.dispose();
-			}			
+	@Override
+	protected void dispose() {		
+		super.dispose();
+		if (!bytePlugin.isDisposed()) {	
+			bytePlugin.dispose();
+		}			
 	 }
-	
 }
