@@ -74,15 +74,12 @@ public class GhidraEmuProvider extends ComponentProvider {
     public ConsoleTaskMonitor monitor;
     public ArrayList < Address > traced;
     public static ArrayList < Address > breaks;
-    public CodeViewerService codeViewer;
-    public ListingPanel lpanel;
-    public ConsoleService console;
     public static JTextField StartTF;
     public static JTextField StopTF;
     public MallocManager mallocMgr;
     private boolean hasHeap;
     public VarnodeContext context;
-
+    public ListingPanel lpanel;
 
     public GhidraEmuProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
         super(ghidraEmuPlugin.getTool(), pluginName, pluginName);
@@ -94,6 +91,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         traced = new ArrayList < Address > ();
         breaks = new ArrayList < Address > ();
         knownFuncs = new ArrayList < String > (Arrays.asList("malloc", "free", "puts", "strlen"));
+    	lpanel = plugin.codeViewer.getListingPanel();
     }
 
     /**
@@ -315,7 +313,7 @@ public class GhidraEmuProvider extends ComponentProvider {
 
 
     public boolean InitEmulation() {
-    	
+
     	if (StartTF.getText().equals("")) {
     		JOptionPane.showMessageDialog(null, "Set start address!");
             return false;
@@ -328,12 +326,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         RegisterProvider.setRegister(RegisterProvider.PC, program.getAddressFactory().getAddress(StartTF.getText()));
 
         try {
-            codeViewer = tool.getService(CodeViewerService.class);
-            lpanel = codeViewer.getListingPanel();
-            console = tool.getService(ConsoleService.class);
-
             emuHelper = new EmulatorHelper(program);
-
             monitor = new ConsoleTaskMonitor() {
                 @Override
                 public void checkCanceled() throws CancelledException {
@@ -472,9 +465,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             try {
                 emuHelper.writeRegister(reg, RegisterProvider.RegsVals.get(counter).value);
                 counter++;
-            } catch (Exception ex) {
-
-            }
+            } catch (Exception ex) { }
         }
     }
 
@@ -495,7 +486,7 @@ public class GhidraEmuProvider extends ComponentProvider {
 	            emuHelper.writeMemory(line.start, line.bytes);
 	        }
 	        emuHelper.enableMemoryWriteTracking(true);
-	    	}
+	 }
     	catch (Exception ex) {
     	}
     }
@@ -533,7 +524,8 @@ public class GhidraEmuProvider extends ComponentProvider {
         try {
             ProgramLocation location = new ProgramLocation(program, executionAddress);
             lpanel.scrollTo(location);
-        } catch (Exception ex) {}
+        } 
+        catch (Exception ex) {}
         readStackfromEmu();
         readEmuRegisters();
 
@@ -572,13 +564,13 @@ public class GhidraEmuProvider extends ComponentProvider {
         if (executionAddress.getOffset() == 0) {
         	GhidraEmuPopup.ToPatch.clear();
         	readStackfromEmu();
-            readEmuRegisters();
-            ProgramLocation location = new ProgramLocation(program, traced.get(traced.size()-1));
-            lpanel.scrollTo(location);
-            emuHelper.dispose();
-            emuHelper = null;
-            JOptionPane.showMessageDialog(null, "Emulation finished!");
-            return;
+            	readEmuRegisters();
+           	 ProgramLocation location = new ProgramLocation(program, traced.get(traced.size()-1));
+            	lpanel.scrollTo(location);
+            	emuHelper.dispose();
+            	emuHelper = null;
+            	JOptionPane.showMessageDialog(null, "Emulation finished!");
+            	return;
         }
         
         if (!success) {
@@ -591,7 +583,6 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
 
         traced.add(executionAddress);
-
         ProgramLocation location = new ProgramLocation(program, executionAddress);
         lpanel.scrollTo(location);
 
@@ -633,7 +624,7 @@ public class GhidraEmuProvider extends ComponentProvider {
 
         for (externalFunction func: unImplementedFuncsPtrs) {
             if (addr.equals(func.FuncPtr)) {
-            	console.addMessage(originator, "Unimplemented function " + func.function.getName() + "!");
+            	plugin.console.addMessage(originator, "Unimplemented function " + func.function.getName() + "!");
                 IPback();
                 return true;
             }
@@ -644,7 +635,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             	GhidraEmuPopup.SetColor(addr, Color.getHSBColor(247, 224, 98));
             	for (externalFunction unImplfunc: unImplementedFuncsPtrs) {
             		if (unImplfunc.function.equals(func.function)) {
-            			console.addMessage(originator, "Call intercepted — " + func.function.getName() + ".");
+            			plugin.console.addMessage(originator, "Call intercepted — " + func.function.getName() + ".");
                     	emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
                     	RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
                     	return true;
@@ -723,9 +714,10 @@ public class GhidraEmuProvider extends ComponentProvider {
         BreakpointProvider.breakTable.repaint();
         try {
             emuHelper.dispose();
-        } catch (Exception ex) {}
+        } 
+        catch (Exception ex) {}
         emuHelper = null;
-        console.clearMessages();
+        plugin.console.clearMessages();
     }
 
     
@@ -829,7 +821,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-                console.addMessage(originator, "Heap allocated at 0x70000000. If you need more space go to Memory Map.");
+                plugin.console.addMessage(originator, "Heap allocated at 0x70000000. If you need more space go to Memory Map.");
             }
 
             try {
@@ -891,7 +883,7 @@ public class GhidraEmuProvider extends ComponentProvider {
 
             String address = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16);
             Address string = program.getAddressFactory().getAddress(address);
-            console.addMessage(originator, emuHelper.readNullTerminatedString(string, 0x1000));
+            plugin.console.addMessage(originator, emuHelper.readNullTerminatedString(string, 0x1000));
         }
         
         else if (func.function.getName().contains("strlen")) {
@@ -903,9 +895,10 @@ public class GhidraEmuProvider extends ComponentProvider {
 			}
 			
 			FunctionEditorModel model = new FunctionEditorModel(null, func.function);
-            Register returnReg = model.getReturnStorage().getRegister();
+           		Register returnReg = model.getReturnStorage().getRegister();
 			emuHelper.writeRegister(returnReg, len);
-            RegisterProvider.setRegister(returnReg.getName(), BigInteger.valueOf(len));
+           		RegisterProvider.setRegister(returnReg.getName(), BigInteger.valueOf(len));
 	}
     }
+
 }
