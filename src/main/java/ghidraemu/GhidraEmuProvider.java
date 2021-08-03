@@ -22,7 +22,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.border.Border;
-import javax.swing.border.LineBorder;
 
 import docking.ComponentProvider;
 import docking.widgets.label.GLabel;
@@ -43,6 +42,8 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryConflictException;
+import ghidra.program.model.symbol.RefType;
+import ghidra.program.model.symbol.Reference;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolType;
 import ghidra.program.util.ProgramContextImpl;
@@ -62,9 +63,9 @@ public class GhidraEmuProvider extends ComponentProvider {
     public GhidraEmuPlugin plugin;
     public static EmulatorHelper emuHelper = null;
     private static final int MALLOC_REGION_SIZE = 0x1000;
-    public String message = "This external function was not implemented by GhidraEmu. Do you want to step inside?";
-    private ArrayList < externalFunction > ImplementedFuncs;
-    private ArrayList < externalFunction > unImplementedFuncs;
+    private ArrayList < externalFunction > ImplementedFuncsPtrs;
+    private ArrayList < externalFunction > unImplementedFuncsPtrs;
+    private ArrayList < externalFunction > ComputedCalls;
     private ArrayList < String > knownFuncs;
     public String originator = "GhidraEmu";
     public Border ClassicBorder;
@@ -92,9 +93,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         setWindowMenuGroup("GhidraEmu");
         traced = new ArrayList < Address > ();
         breaks = new ArrayList < Address > ();
-        ImplementedFuncs = new ArrayList < externalFunction > ();
-        unImplementedFuncs = new ArrayList < externalFunction > ();
-        knownFuncs = new ArrayList < String > (Arrays.asList("malloc", "free", "puts", "strlen", "printf"));
+        knownFuncs = new ArrayList < String > (Arrays.asList("malloc", "free", "puts", "strlen"));
     }
 
     /**
@@ -372,12 +371,18 @@ public class GhidraEmuProvider extends ComponentProvider {
             mallocHandler();
 
             //library hooks
-            for (externalFunction func: ImplementedFuncs) {
-                emuHelper.setBreakpoint(func.Thunkaddress);
+            getExternalAddresses();
+            
+            for (externalFunction func: ImplementedFuncsPtrs) {
+                emuHelper.setBreakpoint(func.FuncPtr);
             }
 
-            for (externalFunction func: unImplementedFuncs) {
-                emuHelper.setBreakpoint(func.Thunkaddress);
+            for (externalFunction func: unImplementedFuncsPtrs) {
+                emuHelper.setBreakpoint(func.FuncPtr);
+            }
+            
+            for (externalFunction func: ComputedCalls) {
+                emuHelper.setBreakpoint(func.FuncPtr);
             }
         } finally {}
         return true;
@@ -618,70 +623,43 @@ public class GhidraEmuProvider extends ComponentProvider {
             return false;
         }
 
-        for (externalFunction func: ImplementedFuncs) {
-            if (addr.equals(func.Thunkaddress)) {
-
-                if (func.function.getName().contains("malloc")) {
-                    int size = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).intValue();
-                    Address memAddr = null;
-                    try {
-                        memAddr = mallocMgr.malloc(size);
-                    } catch (InsufficientBytesException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-
-                    FunctionEditorModel model = new FunctionEditorModel(null, func.function);
-                    Register returnReg = model.getReturnStorage().getRegister();
-
-                    emuHelper.writeRegister(returnReg, memAddr.getOffset());
-                    RegisterProvider.setRegister(returnReg.getName(), memAddr);
-                }
-
-                else if (func.function.getName().contains("free")) {
-                	
-                    Address freeAddr = program.getAddressFactory().getAddress(emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16));
-                    mallocMgr.free(freeAddr);
-                }
-
-                else if (func.function.getName().contains("puts")) {
-
-                    String address = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16);
-                    Address string = program.getAddressFactory().getAddress(address);
-                    console.addMessage(originator, emuHelper.readNullTerminatedString(string, 0x1000));
-                }
-                
-                else if (func.function.getName().contains("strlen")) {
-        			Address ptr = program.getAddressFactory().getAddress(emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16));
-        			int len = 0;
-        			while (emuHelper.readMemoryByte(ptr) != 0) {
-        				++len;
-        				ptr = ptr.next();
-        			}
-        			
-        			FunctionEditorModel model = new FunctionEditorModel(null, func.function);
-                    Register returnReg = model.getReturnStorage().getRegister();
-        			emuHelper.writeRegister(returnReg, len);
-                    RegisterProvider.setRegister(returnReg.getName(), BigInteger.valueOf(len));
-        		}
-                else if (func.function.getName().contains("printf")) {
-                //Works not as expected
-	                String address = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16);
-	                Address string = program.getAddressFactory().getAddress(address);
-	                console.addMessage(originator, emuHelper.readNullTerminatedString(string, 0x1000));
-                
-                }
-                
+        for (externalFunction func: ImplementedFuncsPtrs) {
+            if (addr.equals(func.FuncPtr)) {
+            	EmulateKnownFunc(func);
                 IPback();
                 return true;
             }
         }
 
-        for (externalFunction func: unImplementedFuncs) {
-            if (addr.equals(func.Thunkaddress)) {
+        for (externalFunction func: unImplementedFuncsPtrs) {
+            if (addr.equals(func.FuncPtr)) {
             	console.addMessage(originator, "Unimplemented function " + func.function.getName() + "!");
                 IPback();
                 return true;
+            }
+        }
+        
+        for (externalFunction func: ComputedCalls) {
+            if (addr.equals(func.FuncPtr)) {
+            	GhidraEmuPopup.SetColor(addr, Color.getHSBColor(247, 224, 98));
+            	for (externalFunction unImplfunc: unImplementedFuncsPtrs) {
+            		if (unImplfunc.function.equals(func.function)) {
+            			console.addMessage(originator, "Call intercepted — " + func.function.getName() + ".");
+                    	emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
+                    	RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
+                    	return true;
+            		}
+            	}
+            	
+            	for (externalFunction Implfunc: ImplementedFuncsPtrs) {
+            		if (Implfunc.function.equals(func.function)) {
+            			EmulateKnownFunc(func);
+            			emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
+                    	RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
+                    	return true;
+            		}
+            	}
+            	
             }
         }
 
@@ -752,20 +730,43 @@ public class GhidraEmuProvider extends ComponentProvider {
 
     
     public void getExternalAddresses() {
+    	ImplementedFuncsPtrs = new ArrayList < externalFunction > ();
+        unImplementedFuncsPtrs = new ArrayList < externalFunction > ();
+        ComputedCalls = new ArrayList < externalFunction >();
         for (Symbol externalSymbol: program.getSymbolTable().getExternalSymbols()) {
             if (externalSymbol != null && externalSymbol.getSymbolType() == SymbolType.FUNCTION) {
                 Function f = (Function) externalSymbol.getObject();
                 Address[] thunkAddrs = f.getFunctionThunkAddresses();
-                if (thunkAddrs != null & thunkAddrs.length == 1) {
-                	if (knownFuncs.contains(f.getName())) {
-                        ImplementedFuncs.add(new externalFunction(thunkAddrs[0], f));
-                	} else {
-                        unImplementedFuncs.add(new externalFunction(thunkAddrs[0], f));
-                    }
+                if (thunkAddrs == null) {
+                	//If symbol is not a thunk function it will be null, precedent was noticed in windows binaries
+                	Reference[] references = externalSymbol.getReferences();
+                	for (Reference ref : references) {
+                		RefType refType = ref.getReferenceType();
+                		Address ptrToFunc = ref.getFromAddress();
+            			if (refType == RefType.DATA) { 
+                			if (knownFuncs.contains(f.getName())) {
+                    			ImplementedFuncsPtrs.add(new externalFunction(ptrToFunc, f));
+                    		} else {
+                    			unImplementedFuncsPtrs.add(new externalFunction(ptrToFunc, f));
+                    		}
+            			} else if (refType == RefType.COMPUTED_CALL) {  
+                			ComputedCalls.add(new externalFunction(ptrToFunc, f));
+                		}
+                	}
+                }
+                else {
+                	if (thunkAddrs.length == 1) {
+                		if (knownFuncs.contains(f.getName())) {
+                			ImplementedFuncsPtrs.add(new externalFunction(thunkAddrs[0], f));
+                		} else {
+                			unImplementedFuncsPtrs.add(new externalFunction(thunkAddrs[0], f));
+                		}
+                	}
                 }
             }
         }
     }
+   
 
     public boolean checkForMalloc() {
 
@@ -841,24 +842,70 @@ public class GhidraEmuProvider extends ComponentProvider {
     }
 
     public static class externalFunction {
-        public Address Thunkaddress;
-        public Function
-        function;
+        public Address FuncPtr;
+        public Function function;
 
-        externalFunction(Address Thunkaddress, Function
+        externalFunction(Address FuncPtr, Function
             function) {
-            this.Thunkaddress = Thunkaddress;
+            this.FuncPtr = FuncPtr;
             this.function = function;
         }
     }
 
+    
     private Address getAddressfromInt(int offset) {
         return program.getAddressFactory().getAddress(Integer.toHexString(offset));
     }
 
+    
     private Address getAddressfromLong(long offset) {
         return program.getAddressFactory().getDefaultAddressSpace().getAddress(offset);
     }
 
+    
+    public void EmulateKnownFunc(externalFunction func) {
+    	if (func.function.getName().contains("malloc")) {
+            int size = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).intValue();
+            Address memAddr = null;
+            try {
+                memAddr = mallocMgr.malloc(size);
+            } catch (InsufficientBytesException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
 
+            FunctionEditorModel model = new FunctionEditorModel(null, func.function);
+            Register returnReg = model.getReturnStorage().getRegister();
+
+            emuHelper.writeRegister(returnReg, memAddr.getOffset());
+            RegisterProvider.setRegister(returnReg.getName(), memAddr);
+        }
+
+        else if (func.function.getName().contains("free")) {
+        	
+            Address freeAddr = program.getAddressFactory().getAddress(emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16));
+            mallocMgr.free(freeAddr);
+        }
+
+        else if (func.function.getName().contains("puts")) {
+
+            String address = emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16);
+            Address string = program.getAddressFactory().getAddress(address);
+            console.addMessage(originator, emuHelper.readNullTerminatedString(string, 0x1000));
+        }
+        
+        else if (func.function.getName().contains("strlen")) {
+			Address ptr = program.getAddressFactory().getAddress(emuHelper.readRegister(RegisterProvider.ConventionRegs.get(0)).toString(16));
+			int len = 0;
+			while (emuHelper.readMemoryByte(ptr) != 0) {
+				++len;
+				ptr = ptr.next();
+			}
+			
+			FunctionEditorModel model = new FunctionEditorModel(null, func.function);
+            Register returnReg = model.getReturnStorage().getRegister();
+			emuHelper.writeRegister(returnReg, len);
+            RegisterProvider.setRegister(returnReg.getName(), BigInteger.valueOf(len));
+	}
+    }
 }
