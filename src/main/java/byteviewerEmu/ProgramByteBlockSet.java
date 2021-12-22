@@ -263,8 +263,8 @@ class ProgramByteBlockSet implements ByteBlockSet {
 		return -1;
 	}
 
-	AddressSet getAddressSet(ByteBlockSelection selection) {
-
+	@Override
+	public AddressSet getAddressSet(ByteBlockSelection selection) {
 		AddressSet addrSet = new AddressSet();
 
 		for (int i = 0; i < selection.getNumberOfRanges(); i++) {
