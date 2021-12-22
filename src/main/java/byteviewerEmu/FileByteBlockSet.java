@@ -23,6 +23,7 @@ import java.util.List;
 import ghidra.app.events.ProgramLocationPluginEvent;
 import ghidra.app.events.ProgramSelectionPluginEvent;
 import ghidra.app.plugin.core.format.*;
+import ghidra.program.model.address.AddressSet;
 
 /**
  * ByteBlockSet for a File object.
@@ -146,6 +147,12 @@ class FileByteBlockSet implements ByteBlockSet {
 
 		EditInfo(int index) {
 			this.index = index;
-		}
+		}		
+	}
+
+	@Override
+	public AddressSet getAddressSet(ByteBlockSelection selection) {
+		// Not applicable
+		return null;
 	}
 }
