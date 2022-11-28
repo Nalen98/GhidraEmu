@@ -54,7 +54,7 @@ public class GhidraEmuPlugin extends ProgramPlugin {
     	public ConsoleService console;
 	
 	public GhidraEmuPlugin(PluginTool tool) {
-		super(tool, true, true);
+		super(tool);
 	}
 
 	@Override

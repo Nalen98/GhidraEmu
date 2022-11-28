@@ -23,8 +23,8 @@ import java.math.BigInteger;
 import javax.swing.SwingUtilities;
 
 import docking.DockingUtils;
-import docking.help.Help;
-import docking.help.HelpService;
+import help.Help;
+import help.HelpService;
 import docking.widgets.EventTrigger;
 import docking.widgets.fieldpanel.FieldPanel;
 import docking.widgets.fieldpanel.Layout;

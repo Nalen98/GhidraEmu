@@ -23,8 +23,8 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.event.*;
 
-import docking.help.Help;
-import docking.help.HelpService;
+import help.Help;
+import help.HelpService;
 import docking.widgets.fieldpanel.*;
 import docking.widgets.fieldpanel.field.EmptyTextField;
 import docking.widgets.fieldpanel.field.Field;
