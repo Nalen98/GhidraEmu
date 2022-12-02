@@ -1,7 +1,6 @@
 package ghidraemu;
 
 import java.awt.BorderLayout;
-
 import java.awt.Color;
 import java.awt.Component;
 import java.math.BigInteger;
@@ -9,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.awt.event.ActionEvent;
 import javax.swing.*;
-
 import docking.ActionContext;
 import docking.ComponentProvider;
 import docking.action.DockingAction;
@@ -25,11 +23,9 @@ import ghidra.util.table.GhidraTable;
 import ghidra.util.table.column.AbstractGColumnRenderer;
 import resources.Icons;
 import resources.ResourceManager;
-
 import javax.swing.table.DefaultTableModel;
 
 public class RegisterProvider extends ComponentProvider {
-
     private JPanel panel;
     private static final Object[][] regData = {};
     private static final Object[] columnNames = {
@@ -61,10 +57,9 @@ public class RegisterProvider extends ComponentProvider {
     }
 
     /**
-     * @wbp.parser.entryPoint
-     */
+    * @wbp.parser.entryPoint
+    */
     private void buildPanel() {
-
         panel = new JPanel(new BorderLayout());
         regmodel = new DefaultTableModel(regData, columnNames) {
             @Override
@@ -72,7 +67,6 @@ public class RegisterProvider extends ComponentProvider {
                 return column == 1;
             }
         };
-
         RegList = new ArrayList < > ();
         ProgramRegisters = program.getProgramContext().getRegisters();
 
@@ -86,20 +80,14 @@ public class RegisterProvider extends ComponentProvider {
                 RegList.add(reg.getName());
             }
         }
-
-        //get first 17 - RegList = RegList.stream().limit(17).collect(Collectors.toList());
-
         RegsVals = new ArrayList < RegVal > ();
         for (String reg_name: RegList) {
-
             RegsVals.add(new RegVal(BigInteger.valueOf(0), false));
             regmodel.addRow(new Object[] {
                 reg_name,
                 BigInteger.valueOf(0)
             });
-
         }
-
         ConventionRegs = new ArrayList < Register > ();
         var VarStorage = program.getCompilerSpec().getDefaultCallingConvention().getPotentialInputRegisterStorage(program);
         for (var StorageReg: VarStorage) {
@@ -108,9 +96,7 @@ public class RegisterProvider extends ComponentProvider {
                 ConventionRegs.add(reg);
             }
         }
-
         regtable = new GhidraTable(regmodel);
-
         Action action = new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 TableCellListener tcl = (TableCellListener) e.getSource();
@@ -119,16 +105,13 @@ public class RegisterProvider extends ComponentProvider {
                 RegsVals.set(rowVal, new RegVal(newVal, true));
             }
         };
-
         regtable.getColumnModel().getColumn(1).setMinWidth(100);
         regtable.getColumnModel().getColumn(1).setMaxWidth(150);
         regtable.getColumnModel().getColumn(1).setCellEditor(new HexBigIntegerTableCellEditor());
         regtable.getColumnModel().getColumn(1).setCellRenderer(new HexBigIntegerTableCellRenderer());
         TableCellListener tcl = new TableCellListener(regtable, action);
-
         panel.add(new JScrollPane(regtable), BorderLayout.CENTER);
         setVisible(true);
-
     }
 
     public void setProgram(Program p) {
@@ -145,7 +128,6 @@ public class RegisterProvider extends ComponentProvider {
     }
 
     public class HexBigIntegerTableCellRenderer extends AbstractGColumnRenderer < BigInteger > {
-
         protected String formatBigInteger(BigInteger value) {
             return value == null ? "??" : value.toString(16);
         }
@@ -154,12 +136,10 @@ public class RegisterProvider extends ComponentProvider {
         public Component getTableCellRendererComponent(GTableCellRenderingData data) {
             super.getTableCellRendererComponent(data);
             setText(formatBigInteger((BigInteger) data.getValue()));
-
             if (RegsVals.get(data.getRowViewIndex()).isEdited == true) {
                 setForeground(registerChangesColor);
                 regtable.repaint();
             }
-
             return this;
         }
 
@@ -226,13 +206,11 @@ public class RegisterProvider extends ComponentProvider {
             SetReturnReg = new DockingAction("Set as link register", getName()) {
                 @Override
                 public void actionPerformed(ActionContext context) {
-
                     try {
                         int selected = regtable.getSelectedRow();
                         returnReg = RegList.get(selected);
                         JOptionPane.showMessageDialog(null, "Link register (" + returnReg + ") is set!");
                     } catch (Exception ex) {}
-
                 }
             };
             SetReturnReg.setToolBarData(new ToolBarData(Icons.ARROW_DOWN_RIGHT_ICON, null));

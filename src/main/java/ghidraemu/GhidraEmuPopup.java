@@ -5,7 +5,6 @@ import java.awt.event.KeyEvent;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-
 import docking.action.KeyBindingData;
 import docking.action.MenuData;
 import ghidra.app.context.ListingActionContext;
@@ -17,14 +16,13 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryAccessException;
 
 public class GhidraEmuPopup extends ListingContextAction {
-
     public final String MenuName = "GhidraEmu";
     public final String Group_Name = "GhidraEmu";
     public static PluginTool tool;
     public static Program program;
     public static Address start_address = null;
     public static Address stop_address = null;
-    public static ArrayList < PatchedBytes > ToPatch = new ArrayList < PatchedBytes > ();
+    public static ArrayList < PatchedBytes > bytesToPatch = new ArrayList < PatchedBytes > ();
 
     public GhidraEmuPopup(GhidraEmuPlugin plugin, Program program) {
         super("GhidraEmuPlugin", plugin.getName());
@@ -38,18 +36,14 @@ public class GhidraEmuPopup extends ListingContextAction {
     }
 
     public void setupActions() {
-
         tool.setMenuGroup(new String[] {
             MenuName
         }, Group_Name);
 
         ListingContextAction EmuStart = new ListingContextAction("Start emulation here", getName()) {
-
             @Override
             protected void actionPerformed(ListingActionContext context) {
-
                 if (context.getLocation().getAddress() != start_address) {
-
                     if (start_address != null) {
                         UnSetColor(start_address);
                     }
@@ -68,19 +62,15 @@ public class GhidraEmuPopup extends ListingContextAction {
         tool.addAction(EmuStart);
 
         ListingContextAction EmuStop = new ListingContextAction("Stop emulation here", getName()) {
-
             @Override
             protected void actionPerformed(ListingActionContext context) {
-
                 if (context.getLocation().getAddress() != stop_address) {
-
                     if (stop_address != null) {
                         UnSetColor(stop_address);
                     }
                     stop_address = context.getLocation().getAddress();
                     SetColor(stop_address, Color.CYAN);
                     GhidraEmuProvider.StopTF.setText("0x" + context.getLocation().getAddress().toString());
-
                 }
             }
         };
@@ -92,18 +82,15 @@ public class GhidraEmuPopup extends ListingContextAction {
         tool.addAction(EmuStop);
 
         ListingContextAction ApplyPatchedBytes = new ListingContextAction("Apply Patched Bytes", getName()) {
-
             @Override
             protected void actionPerformed(ListingActionContext context) {
-
                 Address StartAddress = context.getSelection().getMinAddress();
                 List < Byte > patched = new ArrayList < Byte > ();
                 for (Address address: context.getSelection().getAddresses(true)) {
                     byte Byte = 0;
                     try {
                         Byte = context.getProgram().getMemory().getByte(address);
-                    } catch (MemoryAccessException e) {
-                        // TODO Auto-generated catch block
+                    } catch (MemoryAccessException e) {                        
                         e.printStackTrace();
                     }
                     patched.add(Byte);
@@ -114,8 +101,7 @@ public class GhidraEmuPopup extends ListingContextAction {
                     pbytes[counter] = b;
                     counter++;
                 }
-
-                ToPatch.add(new PatchedBytes(StartAddress, pbytes));
+                bytesToPatch.add(new PatchedBytes(StartAddress, pbytes));
             }
         };
 
@@ -126,10 +112,8 @@ public class GhidraEmuPopup extends ListingContextAction {
         tool.addAction(ApplyPatchedBytes);
 
         ListingContextAction SetBreak = new ListingContextAction("Add breakpoint", getName()) {
-
             @Override
             protected void actionPerformed(ListingActionContext context) {
-
                 Address address = context.getLocation().getAddress();
                 SetColor(address, Color.RED);
                 if (!GhidraEmuProvider.breaks.contains(address)) {
@@ -146,12 +130,9 @@ public class GhidraEmuPopup extends ListingContextAction {
             "Add breakpoint"
         }, null, Group_Name));
         tool.addAction(SetBreak);
-
         ListingContextAction UnSetBreak = new ListingContextAction("Delete breakpoint", getName()) {
-
             @Override
             protected void actionPerformed(ListingActionContext context) {
-
                 Address address = context.getLocation().getAddress();
                 UnSetColor(address);
                 GhidraEmuProvider.breaks.remove(address);
@@ -168,24 +149,20 @@ public class GhidraEmuPopup extends ListingContextAction {
             "Delete breakpoint"
         }, null, Group_Name));
         tool.addAction(UnSetBreak);
-
     }
-    public static void UnSetColor(Address address) {
 
+    public static void UnSetColor(Address address) {
         ColorizingService service = tool.getService(ColorizingService.class);
         int TransactionID = program.startTransaction("UnSetColor");
         service.clearBackgroundColor(address, address);
         program.endTransaction(TransactionID, true);
-
     }
 
     public static void SetColor(Address address, Color color) {
-
         ColorizingService service = tool.getService(ColorizingService.class);
         int TransactionID = program.startTransaction("SetColor");
         service.setBackgroundColor(address, address, color);
         program.endTransaction(TransactionID, true);
-
     }
 
     public static class PatchedBytes {
@@ -197,5 +174,4 @@ public class GhidraEmuPopup extends ListingContextAction {
             this.bytes = bytes;
         }
     }
-
 }

@@ -3,7 +3,6 @@ package ghidraemu;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
-
 import javax.swing.JFrame;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
@@ -16,7 +15,6 @@ import docking.widgets.textfield.IntegerTextField;
 import resources.ResourceManager;
 
 public class AddBreakpointPanel {
-
     private JFrame frame;
     private IntegerTextField AddrTF;
     public AddBreakpointPanel window;
@@ -51,11 +49,9 @@ public class AddBreakpointPanel {
         AddrTF = new IntegerTextField();
         AddrTF.setHexMode();
         JLabel AddressLb = new JLabel("Address:");
-
         JButton AddBtn = new JButton("Add");
         AddBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
-
                 if (!GhidraEmuProvider.breaks.contains(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()))) {
                     GhidraEmuProvider.breaks.add(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()));
                     BreakpointProvider.Breakmodel.addRow(new Object[] {
@@ -64,7 +60,6 @@ public class AddBreakpointPanel {
                     GhidraEmuPopup.SetColor(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()), Color.RED);
                 }
                 frame.dispose();
-
             }
         });
         GroupLayout groupLayout = new GroupLayout(frame.getContentPane());

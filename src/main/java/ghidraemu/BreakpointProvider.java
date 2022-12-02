@@ -3,13 +3,11 @@ package ghidraemu;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.math.BigInteger;
-
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.table.DefaultTableModel;
-
 import docking.ActionContext;
 import docking.ComponentProvider;
 import docking.action.DockingAction;
@@ -25,17 +23,13 @@ import resources.Icons;
 import resources.ResourceManager;
 
 public class BreakpointProvider extends ComponentProvider {
-
     private JPanel panel;
     private DockingAction AddBreakAction;
     private DockingAction DelBreakAction;
     public static DefaultTableModel Breakmodel;
     public Program program;
     private static Object[][] breakData = {};
-    private static final Object[] columnNames = {
-        "",
-        "Breakpoint"
-    };
+    private static final Object[] columnNames = {"", "Breakpoint"};
     public static GhidraTable breakTable;
     public static ImageIcon BIcon;
     public boolean actionsCreated = false;
@@ -54,7 +48,6 @@ public class BreakpointProvider extends ComponentProvider {
     private void buildPanel() {
         panel = new JPanel(new BorderLayout());
         BIcon = new ImageIcon(getClass().getResource("/images/breakpoint-enable.png"));
-
         Breakmodel = new DefaultTableModel(breakData, columnNames) {
             @Override
             public Class < ? > getColumnClass(int column) {
@@ -73,17 +66,14 @@ public class BreakpointProvider extends ComponentProvider {
                 BigInteger.valueOf(breakPoint.getOffset())
             });
         }
-
         breakTable = new GhidraTable(Breakmodel);
         breakTable.getColumnModel().getColumn(0).setMaxWidth(25);
         breakTable.getColumnModel().getColumn(1).setMinWidth(100);
         breakTable.getColumnModel().getColumn(1).setCellEditor(new HexBigIntegerTableCellEditor());
         breakTable.getColumnModel().getColumn(1).setCellRenderer(new HexBigIntegerTableCellRenderer());
-
         panel.add(new JScrollPane(breakTable), BorderLayout.CENTER);
         setVisible(true);
     }
-
 
     private void createActions() {
         if (!actionsCreated) {
@@ -102,14 +92,12 @@ public class BreakpointProvider extends ComponentProvider {
             DelBreakAction = new DockingAction("Delete breakpoint", getName()) {
                 @Override
                 public void actionPerformed(ActionContext context) {
-
                     try {
                         int selected = BreakpointProvider.breakTable.getSelectedRow();
                         GhidraEmuPopup.UnSetColor(GhidraEmuProvider.breaks.get(selected));
                         GhidraEmuProvider.breaks.remove(selected);
                         BreakpointProvider.Breakmodel.removeRow(selected);
                     } catch (Exception ex) {}
-
                 }
             };
             DelBreakAction.setToolBarData(new ToolBarData(Icons.DELETE_ICON, null));
@@ -151,5 +139,4 @@ public class BreakpointProvider extends ComponentProvider {
             return formatBigInteger(t);
         }
     }
-
 }
