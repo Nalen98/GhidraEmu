@@ -78,7 +78,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 
 		AddressSet addrSet = new AddressSet();
 
-		for (int i = 0; i < selection.getNumberOfRanges(); i++) {
+		for (int i = 0; i <selection.getNumberOfRanges(); i++) {
 			ByteBlockRange br = selection.getRange(i);
 			ByteBlock block = br.getByteBlock();
 			Address start = getAddress(block, br.getStartIndex());
@@ -123,7 +123,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 		while (iter.hasNext()) {
 			AddressRange range = iter.next();
 
-			for (int i = 0; i < blocks.length; i++) {
+			for (int i = 0; i <blocks.length; i++) {
 				Address blockStart = memBlocks[i].getStart();
 				Address blockEnd = memBlocks[i].getEnd();
 				AddressRange intersection =
@@ -197,15 +197,13 @@ class ProgramByteBlockSet implements ByteBlockSet {
 	 */
 	Address getAddress(ByteBlock block, BigInteger offset) {
 
-		for (int i = 0; i < blocks.length; i++) {
+		for (int i = 0; i <blocks.length; i++) {
 			if (blocks[i] != block) {
 				continue;
 			}
 			try {
-
-				Address addr = ProgramByteViewerComponentProviderEmu.endStack;
+				Address addr = ProgramByteViewerComponentProviderEmu.midStack;
 				return addr.addNoWrap(offset);
-
 			}
 			catch (AddressOverflowException e) {
 				throw new IndexOutOfBoundsException("Offset " + offset + " is not in this block");
@@ -225,7 +223,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 			return null;
 		}
 
-		for (int i = 0; i < memBlocks.length; i++) {
+		for (int i = 0; i <memBlocks.length; i++) {
 			if (!memBlocks[i].contains(address)) {
 				continue;
 			}
@@ -233,7 +231,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 			try {
 				long off = address.subtract(memBlocks[i].getStart());
 				BigInteger offset =
-					(off < 0)
+					(off <0)
 							? BigInteger.valueOf(off + 0x8000000000000000L).subtract(
 								BigInteger.valueOf(0x8000000000000000L))
 							: BigInteger.valueOf(off);
@@ -255,7 +253,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 	}
 
 	int getByteBlockNumber(Address blockStartAddr) {
-		for (int i = 0; i < memBlocks.length; i++) {
+		for (int i = 0; i <memBlocks.length; i++) {
 			if (memBlocks[i].getStart().compareTo(blockStartAddr) == 0) {
 				return i;
 			}
@@ -267,7 +265,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 	public AddressSet getAddressSet(ByteBlockSelection selection) {
 		AddressSet addrSet = new AddressSet();
 
-		for (int i = 0; i < selection.getNumberOfRanges(); i++) {
+		for (int i = 0; i <selection.getNumberOfRanges(); i++) {
 			ByteBlockRange br = selection.getRange(i);
 			ByteBlock block = br.getByteBlock();
 			Address start = getAddress(block, br.getStartIndex());

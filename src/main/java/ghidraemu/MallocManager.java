@@ -23,7 +23,7 @@ public class MallocManager {
             throw new IllegalArgumentException("malloc request for " + byteLength);
         }
         for (AddressRange range : allocSet.getAddressRanges()) {
-            if (range.getLength() >= byteLength) {
+            if (range.getLength()>= byteLength) {
                 AddressRange mallocRange = new AddressRangeImpl(range.getMinAddress(),
                     range.getMinAddress().add(byteLength - 1));
                 mallocMap.put(mallocRange.getMinAddress(), mallocRange);
@@ -42,5 +42,5 @@ public class MallocManager {
                 "free request for unallocated block at " + mallocRangeAddr);
         }
         allocSet.add(range);
-    }	
+    }
 }

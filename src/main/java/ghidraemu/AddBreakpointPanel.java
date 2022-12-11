@@ -54,10 +54,10 @@ public class AddBreakpointPanel {
             public void actionPerformed(ActionEvent arg0) {
                 if (!GhidraEmuProvider.breaks.contains(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()))) {
                     GhidraEmuProvider.breaks.add(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()));
-                    BreakpointProvider.Breakmodel.addRow(new Object[] {
-                        BreakpointProvider.BIcon, BigInteger.valueOf(AddrTF.getLongValue())
+                    BreakpointProvider.breakModel.addRow(new Object[] {
+                        BreakpointProvider.breakpointIcon, BigInteger.valueOf(AddrTF.getLongValue())
                     });
-                    GhidraEmuPopup.SetColor(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()), Color.RED);
+                    GhidraEmuPopup.setColor(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()), Color.RED);
                 }
                 frame.dispose();
             }

@@ -158,7 +158,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		BigInteger index = loc.getIndex();
 		int pos = loc.getCol();
 
-		if (pos >= model.getDataUnitSymbolSize()) {
+		if (pos>= model.getDataUnitSymbolSize()) {
 			pos = model.getDataUnitSymbolSize() - 1;
 		}
 
@@ -222,7 +222,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		}
 
 		char c = ev.getKeyChar();
-		if (c < 0x20 || c > 0x7F) {
+		if (c <0x20 || c> 0x7F) {
 			ev.consume();
 			getToolkit().beep();
 			return;
@@ -242,7 +242,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 			return;
 		}
 
-		if (col >= model.getDataUnitSymbolSize()) {
+		if (col>= model.getDataUnitSymbolSize()) {
 			col = model.getDataUnitSymbolSize() - 1;
 		}
 
@@ -258,7 +258,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		// note: byte offset is handled by the model so we don't need
 		// to add it in...
 		int transactionID = blockSet.startTransaction();
-		if (transactionID < 0) {
+		if (transactionID <0) {
 			ev.consume();
 			getToolkit().beep();
 			return;
@@ -305,7 +305,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 	private byte[] getByteValue(ByteBlock block, BigInteger offset) {
 		byte[] b = new byte[model.getUnitByteSize()];
 		try {
-			for (int i = 0; i < b.length; i++) {
+			for (int i = 0; i <b.length; i++) {
 				b[i] = block.getByte(offset.add(BigInteger.valueOf(i)));
 			}
 			return b;
@@ -444,7 +444,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 
 	private FieldSelection getFieldSelection(ByteBlockSelection selection) {
 		FieldSelection fsel = new FieldSelection();
-		for (int i = 0; i < selection.getNumberOfRanges(); i++) {
+		for (int i = 0; i <selection.getNumberOfRanges(); i++) {
 			ByteBlockRange r = selection.getRange(i);
 			ByteBlock block = r.getByteBlock();
 			BigInteger start = r.getStartIndex();
@@ -527,8 +527,8 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 
 		// Make sure the position is valid
 		BigInteger index = fieldLoc.getIndex();
-		if ((index.compareTo(BigInteger.ZERO) < 0) ||
-			(index.compareTo(layoutModel.getNumIndexes()) >= 0)) {
+		if ((index.compareTo(BigInteger.ZERO) <0) ||
+			(index.compareTo(layoutModel.getNumIndexes())>= 0)) {
 			return characterOffset;
 		}
 
@@ -544,7 +544,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		if (field != null) {
 			// not sure this can be null
 			int numCols = field.getNumCols(fieldRow);
-			if (column >= numCols) {
+			if (column>= numCols) {
 				column = numCols - 1;
 			}
 		}
@@ -626,7 +626,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		ByteField currentField = (ByteField) field;
 		int fieldOffset = currentField.getFieldOffset();
 		int pos = loc.getCol();
-		if (pos >= model.getDataUnitSymbolSize()) {
+		if (pos>= model.getDataUnitSymbolSize()) {
 			pos = model.getDataUnitSymbolSize() - 1;
 		}
 		BigInteger index = loc.getIndex();
@@ -694,7 +694,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 				ByteBlockSelection sel = getViewerSelection();
 				layoutModel.dataChanged(loc.getIndex(), loc.getIndex());
 
-				if (sel != null && sel.getNumberOfRanges() > 0) {
+				if (sel != null && sel.getNumberOfRanges()> 0) {
 					setViewerSelection(sel);
 				}
 			}
@@ -762,7 +762,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		fieldFactories = new FieldFactory[fieldCount];
 		int charWidth = fm.charWidth('W');
 		int fieldOffset = 0;
-		for (int i = 0; i < fieldCount; i++) {
+		for (int i = 0; i <fieldCount; i++) {
 			fieldFactories[i] =
 				new FieldFactory(model, bytesPerLine, fieldOffset, fm, highlightProvider);
 			fieldOffset += model.getUnitByteSize();
@@ -777,7 +777,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		int offset = indexMap.getFieldOffset(index, loc.getFieldNum(), fieldFactories);
 		if (!isStart && loc.getCol() == 0) {
 			offset--;
-			if (offset < 0) {
+			if (offset <0) {
 				index = index.subtract(BigInteger.ONE);
 				offset = indexMap.getFieldOffset(index, fieldFactories.length, fieldFactories);
 				offset += model.getUnitByteSize() - 1;
@@ -819,7 +819,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 		ByteBlockSelection sel = new ByteBlockSelection();
 		int count = selection.getNumRanges();
 
-		for (int i = 0; i < count; i++) {
+		for (int i = 0; i <count; i++) {
 			FieldRange fr = selection.getFieldRange(i);
 			ByteBlockInfo startInfo = getBlockInfo(fr.getStart(), true);
 			ByteBlockInfo endInfo = getBlockInfo(fr.getEnd(), false);
@@ -858,7 +858,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 	ByteField getField(BigInteger index, int fieldNum) {
 		if (indexMap != null) {
 			int fieldOffset = indexMap.getFieldOffset(index, fieldNum, fieldFactories);
-			if (fieldNum < fieldFactories.length) {
+			if (fieldNum <fieldFactories.length) {
 				return (ByteField) fieldFactories[fieldOffset].getField(index);
 			}
 		}
@@ -889,7 +889,7 @@ public class ByteViewerComponent extends FieldPanel implements FieldMouseListene
 			BigInteger currentIndex = currentByteField.getIndex();
 			Layout layout = layoutModel.getLayout(layoutIndex);
 			int n = layout.getNumFields();
-			for (int i = 0; i < n; i++) {
+			for (int i = 0; i <n; i++) {
 				Field field = layout.getField(i);
 				if (!(field instanceof ByteField)) {
 					continue;

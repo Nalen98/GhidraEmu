@@ -7,12 +7,11 @@ import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
 import ghidra.app.services.CodeViewerService;
 import ghidra.app.services.ConsoleService;
-import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.*;
 import ghidra.framework.plugintool.util.PluginStatus;
+import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
-
 
 //@formatter:off
 @PluginInfo(
@@ -25,11 +24,11 @@ import ghidra.program.util.ProgramLocation;
 )
 //@formatter:on
 public class GhidraEmuPlugin extends ProgramPlugin {    
-    public GhidraEmuProvider provider;
+    public GhidraEmuProvider provider;   
     public static RegisterProvider regprovider;
-    public static ProgramByteViewerComponentProviderEmu stackprovider;	
+    public static ProgramByteViewerComponentProviderEmu stackProvider;	  
     public static BreakpointProvider bpprovider;
-    public ByteViewerPluginEmu bytePlugin;
+    public ByteViewerPluginEmu stackBytesPlugin;
     public Program program;
     public static GhidraEmuPopup popup; 
     public CodeViewerService codeViewer;
@@ -47,10 +46,10 @@ public class GhidraEmuPlugin extends ProgramPlugin {
         provider = new GhidraEmuProvider(this, pluginName);	
         regprovider = new RegisterProvider(this, pluginName);	
         bpprovider = new BreakpointProvider(this, pluginName);
-        bytePlugin = new ByteViewerPluginEmu(tool);
-        stackprovider = bytePlugin.getProvider();	
-        stackprovider.setTitle("GhidraEmu Stack");
-        stackprovider.contextChanged(); 
+        stackBytesPlugin = new ByteViewerPluginEmu(tool);        
+        stackProvider = stackBytesPlugin.getProvider();	
+        stackProvider.setTitle("GhidraEmu Stack");
+        stackProvider.contextChanged();
         createActions();
     }
     
@@ -63,10 +62,9 @@ public class GhidraEmuPlugin extends ProgramPlugin {
                 provider.setProgram(p);  
                 popup.setProgram(p);   
                 bpprovider.setProgram(p);  
-                long stackOffset =
-                    (program.getMinAddress().getAddressSpace().getMaxAddress().getOffset() >>> 5) - 0x7fff;
-                ProgramLocation location = new ProgramLocation(program, program.getAddressFactory().getAddress(Long.toHexString(stackOffset)));    
-                stackprovider.goTo(program, location);
+                Address stackOffset = program.getMemory().getBlock("Stack").getStart();      
+                ProgramLocation stackLocation = new ProgramLocation(program, stackOffset);                  
+                stackProvider.goTo(program, stackLocation);
             }
         }
     }
@@ -76,10 +74,16 @@ public class GhidraEmuPlugin extends ProgramPlugin {
     }
     
     @Override
+    protected void programDeactivated(Program program) {
+        // Clear the whole emulation progress to avoid errors the next time
+        provider.resetState();
+    }
+    
+    @Override
     protected void dispose() {		
         super.dispose();
-        if (!bytePlugin.isDisposed()) {	
-            bytePlugin.dispose();
-        }			
-    }
+        if (!stackBytesPlugin.isDisposed()) {	
+            stackBytesPlugin.dispose();
+        }	        	
+    }    
 }

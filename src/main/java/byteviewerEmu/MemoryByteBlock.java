@@ -94,7 +94,7 @@ public class MemoryByteBlock implements ByteBlock {
 	public BigInteger getLength() {
 
 		long size = block.getSize();
-		if (size < 0) {
+		if (size <0) {
 			return BigInteger.valueOf(size + 0x8000000000000000L).subtract(
 				BigInteger.valueOf(0x8000000000000000L));
 		}
@@ -318,7 +318,7 @@ public class MemoryByteBlock implements ByteBlock {
 	private void checkEditsAllowed(Address addr, long length) throws ByteBlockAccessException {
 		if (!editAllowed(addr, length)) {
 			String msg = "Instruction exists at address " + addr;
-			if (length > 1) {
+			if (length> 1) {
 				Address toAddr = null;
 				try {
 					toAddr = addr.addNoWrap(length);
@@ -338,7 +338,7 @@ public class MemoryByteBlock implements ByteBlock {
 	private boolean editAllowed(Address addr, long length) {
 		Listing listing = program.getListing();
 		Address a = addr;
-		for (int i = 0; i < length; i++) {
+		for (int i = 0; i <length; i++) {
 			try {
 				a = a.addNoWrap(i);
 			}

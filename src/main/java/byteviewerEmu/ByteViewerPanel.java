@@ -106,7 +106,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 			height += dim.height;
 		}
 		boolean addHeight = true;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 
 			ByteViewerComponent c = viewList.get(i);
 			Dimension d = c.getPreferredSize();
@@ -180,7 +180,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 */
 	void setCurrentCursorColor(Color c) {
 		currentCursorColor = c;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setCurrentCursorColor(c);
 		}
@@ -188,7 +188,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 
 	void setCurrentCursorLineColor(Color c) {
 		currentCursorLineColor = c;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setCurrentCursorLineColor(c);
 		}
@@ -196,7 +196,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 
 	void setHighlightButton(int highlightButton) {
 		this.highlightButton = highlightButton;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setHighlightButton(highlightButton);
 		}
@@ -204,7 +204,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 
 	void setMouseButtonHighlightColor(Color color) {
 	    this.highlightColor = color;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setMouseButtonHighlightColor(color);
 		}
@@ -212,7 +212,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 
 	void setCursorColor(Color c) {
 		cursorColor = c;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setNonFocusCursorColor(c);
 		}
@@ -223,7 +223,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 */
 	void setSeparatorColor(Color c) {
 		indexFactory.setMissingValueColor(c);
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setSeparatorColor(c);
 		}
@@ -233,7 +233,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * Set the color of the cursor when the byte viewer is not in focus.
 	 */
 	void setNonFocusCursorColor(Color c) {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent comp = viewList.get(i);
 			comp.setNonFocusCursorColor(c);
 		}
@@ -251,7 +251,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	
 			if (blockSet != null) {
 				blocks = blockSet.getBlocks();
-				if (blocks.length > 0) {
+				if (blocks.length> 0) {
 					indexMap = new IndexMap(blockSet, bytesPerLine, blockOffset);
 					String start = blocks[0].getLocationRepresentation(BigInteger.ZERO);
 					startField.setText(start);
@@ -274,17 +274,17 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 			// Do the following loop twice - once with update off and then with update on.
 			// need to do this because all the byte view components must have their models 
 			// updated before any one of them tells their dependents about the change.
-			for (int i = 0; i < viewList.size(); i++) {
+			for (int i = 0; i <viewList.size(); i++) {
 				ByteViewerComponent c = viewList.get(i);
 				c.enableIndexUpdate(false);
 				c.setIndexMap(indexMap);
 			}
-			for (int i = 0; i < viewList.size(); i++) {
+			for (int i = 0; i <viewList.size(); i++) {
 				ByteViewerComponent c = viewList.get(i);
 				c.enableIndexUpdate(true);
 				c.setIndexMap(indexMap);
 			}
-			if (blocks != null && blocks.length > 0) {
+			if (blocks != null && blocks.length> 0) {
 				columnHeader.setColumnName(indexPanel, blocks[0].getIndexName());
 				setCursorLocation(blocks[0], BigInteger.ZERO, 0);
 			}
@@ -298,7 +298,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * Set the selection for all the views.
 	 */
 	void setViewerSelection(ByteBlockSelection selection) {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setViewerSelection(selection);
 		}
@@ -320,7 +320,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * Set the highlight for all the views.
 	 */
 	void setViewerHighlight(ByteBlockSelection highlight) {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setViewerHighlight(highlight);
 		}
@@ -344,11 +344,11 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	void setCursorLocation(ByteBlock block, BigInteger index, int column) {
 
 		int modelIndex = -1;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			modelIndex = c.setViewerCursorLocation(block, index, column);
 		}
-		if (modelIndex >= 0) {
+		if (modelIndex>= 0) {
 			insertionField.setText(block.getLocationRepresentation(index));
 		}
 	}
@@ -465,7 +465,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 			currentView = null;
 		}
 
-		if (viewList.size() > 0) {
+		if (viewList.size()> 0) {
 			currentView = viewList.get(0);
 		}
 		comp.dispose();
@@ -490,7 +490,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * edit mode.
 	 */
 	void setEditMode(boolean editMode) {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setEditMode(editMode);
 		}
@@ -511,7 +511,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * Force the current view to be refreshed.
 	 */
 	void refreshView() {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.refreshView();
 		}
@@ -564,11 +564,11 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * bytesPerLine value
 	 */
 	void checkBytesPerLine(int numBytesPerLine) throws InvalidInputException {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			DataFormatModel model = c.getDataModel();
 			int groupSize = model.getGroupSize();
-			if (groupSize > 0) {
+			if (groupSize> 0) {
 				if (numBytesPerLine % groupSize != 0) {
 					throw new InvalidInputException(
 						"Bytes Per Line not divisible by Group Size[" + groupSize + "].");
@@ -625,7 +625,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 			}
 			insertionField.setText(locRep);
 		}
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			if (source == c) {
 				continue;
@@ -643,7 +643,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	void updateSelection(ByteViewerComponent source, ByteBlockSelection selection) {
 		provider.updateSelection(selection);
 
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			if (source == c) {
 				continue;
@@ -712,7 +712,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 		BigInteger offset = vp.getOffset();
 		ViewerPosition vpos = vp.getViewerPosition();
 
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.returnToView(block, offset, vpos);
 		}
@@ -753,7 +753,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 */
 	void setFontMetrics(FontMetrics fm) {
 		this.fm = fm;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setFontMetrics(fm);
 		}
@@ -775,7 +775,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 */
 	void setEditColor(Color editColor) {
 		this.editColor = editColor;
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setEditColor(editColor);
 		}
@@ -911,7 +911,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 			block = info.getBlock();
 			offset = info.getOffset();
 		}
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.setIndexMap(indexMap);
 			if (info != null) {
@@ -925,7 +925,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	 * Clear the selection.
 	 */
 	private void clearSelection() {
-		for (int i = 0; i < viewList.size(); i++) {
+		for (int i = 0; i <viewList.size(); i++) {
 			ByteViewerComponent c = viewList.get(i);
 			c.clearViewerSelection();
 		}
@@ -980,7 +980,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	private int getIndexPanelWidth(ByteBlock[] blocks1) {
 		FontMetrics headerFm = columnHeader.getFontMetrics(columnHeader.getFont());
 		String indexName = ByteViewerComponentProviderEmu.DEFAULT_INDEX_NAME;
-		if (blocks1.length > 0) {
+		if (blocks1.length> 0) {
 			indexName = blocks1[0].getIndexName();
 		}
 		int nameWidth = headerFm.stringWidth(indexName);
@@ -1005,7 +1005,7 @@ public class ByteViewerPanel extends JPanel implements TableColumnModelListener,
 	@Override
 	public BigInteger getIndexAfter(BigInteger index) {
 		BigInteger nextIndex = index.add(BigInteger.ONE);
-		if (nextIndex.compareTo(indexMap.getNumIndexes()) >= 0) {
+		if (nextIndex.compareTo(indexMap.getNumIndexes())>= 0) {
 			return null;
 		}
 		return nextIndex;

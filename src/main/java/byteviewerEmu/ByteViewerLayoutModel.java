@@ -58,7 +58,7 @@ class ByteViewerLayoutModel implements LayoutModel {
 
 		int x = margin;
 		int defaultGroupSizeSpace = 1;
-		for (int i = 0; i < factorys.length; i++) {
+		for (int i = 0; i <factorys.length; i++) {
 			factorys[i] = fieldFactorys[i];
 			factorys[i].setStartX(x);
 			x += factorys[i].getWidth();
@@ -123,7 +123,7 @@ class ByteViewerLayoutModel implements LayoutModel {
 
 	@Override
 	public Layout getLayout(BigInteger index) {
-		if (index.compareTo(numIndexes) >= 0) {
+		if (index.compareTo(numIndexes)>= 0) {
 			return null;
 		}
 		List<Field> fields = new ArrayList<Field>(8);
@@ -134,7 +134,7 @@ class ByteViewerLayoutModel implements LayoutModel {
 			}
 		}
 		if (fields.size() == 0) {
-			if (factorys.length > 0) {
+			if (factorys.length> 0) {
 				FontMetrics fm = factorys[0].getMetrics();
 				int height = fm.getMaxAscent() + fm.getMaxDescent();
 				fields.add(
@@ -169,7 +169,7 @@ class ByteViewerLayoutModel implements LayoutModel {
 	@Override
 	public BigInteger getIndexAfter(BigInteger index) {
 		BigInteger nextIndex = index.add(BigInteger.ONE);
-		if (nextIndex.compareTo(numIndexes) >= 0) {
+		if (nextIndex.compareTo(numIndexes)>= 0) {
 			return null;
 		}
 		return nextIndex;
@@ -177,11 +177,11 @@ class ByteViewerLayoutModel implements LayoutModel {
 
 	@Override
 	public BigInteger getIndexBefore(BigInteger index) {
-		if (index.compareTo(numIndexes) > 0) {
+		if (index.compareTo(numIndexes)> 0) {
 			return numIndexes.subtract(BigInteger.ONE);
 		}
 		BigInteger previousIndex = index.subtract(BigInteger.ONE);
-		if (previousIndex.compareTo(BigInteger.ZERO) < 0) {
+		if (previousIndex.compareTo(BigInteger.ZERO) <0) {
 			return null;
 		}
 		return previousIndex;

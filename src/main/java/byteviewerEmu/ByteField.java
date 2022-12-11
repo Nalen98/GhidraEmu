@@ -83,7 +83,7 @@ public class ByteField extends SimpleTextField {
 			return;
 		}
 
-		if (cursorLoc.col() >= numCols) {
+		if (cursorLoc.col()>= numCols) {
 			return;
 		}
 

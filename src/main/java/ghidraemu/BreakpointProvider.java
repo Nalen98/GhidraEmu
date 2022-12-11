@@ -24,14 +24,14 @@ import resources.ResourceManager;
 
 public class BreakpointProvider extends ComponentProvider {
     private JPanel panel;
-    private DockingAction AddBreakAction;
-    private DockingAction DelBreakAction;
-    public static DefaultTableModel Breakmodel;
+    private DockingAction addBreakAction;
+    private DockingAction delBreakAction;
+    public static DefaultTableModel breakModel;
     public Program program;
     private static Object[][] breakData = {};
     private static final Object[] columnNames = {"", "Breakpoint"};
     public static GhidraTable breakTable;
-    public static ImageIcon BIcon;
+    public static ImageIcon breakpointIcon;
     public boolean actionsCreated = false;
 
     public BreakpointProvider(GhidraEmuPlugin plugin, String pluginName) {
@@ -47,10 +47,10 @@ public class BreakpointProvider extends ComponentProvider {
      */
     private void buildPanel() {
         panel = new JPanel(new BorderLayout());
-        BIcon = new ImageIcon(getClass().getResource("/images/breakpoint-enable.png"));
-        Breakmodel = new DefaultTableModel(breakData, columnNames) {
+        breakpointIcon = new ImageIcon(getClass().getResource("/images/breakpoint-enable.png"));
+        breakModel = new DefaultTableModel(breakData, columnNames) {
             @Override
-            public Class < ? > getColumnClass(int column) {
+            public Class <?> getColumnClass(int column) {
                 if (column == 0) return ImageIcon.class;
                 return Object.class;
             }
@@ -61,12 +61,12 @@ public class BreakpointProvider extends ComponentProvider {
         };
 
         for (Address breakPoint: GhidraEmuProvider.breaks) {
-            Breakmodel.addRow(new Object[] {
-                BIcon,
+            breakModel.addRow(new Object[] {
+                breakpointIcon,
                 BigInteger.valueOf(breakPoint.getOffset())
             });
         }
-        breakTable = new GhidraTable(Breakmodel);
+        breakTable = new GhidraTable(breakModel);
         breakTable.getColumnModel().getColumn(0).setMaxWidth(25);
         breakTable.getColumnModel().getColumn(1).setMinWidth(100);
         breakTable.getColumnModel().getColumn(1).setCellEditor(new HexBigIntegerTableCellEditor());
@@ -77,33 +77,33 @@ public class BreakpointProvider extends ComponentProvider {
 
     private void createActions() {
         if (!actionsCreated) {
-            AddBreakAction = new DockingAction("Add breakpoint", getName()) {
+            addBreakAction = new DockingAction("Add breakpoint", getName()) {
                 @Override
                 public void actionPerformed(ActionContext context) {
                     AddBreakpointPanel obj = new AddBreakpointPanel();
                     obj.main();
                 }
             };
-            AddBreakAction.setToolBarData(new ToolBarData(Icons.ADD_ICON, null));
-            AddBreakAction.setEnabled(true);
-            AddBreakAction.markHelpUnnecessary();
-            dockingTool.addLocalAction(this, AddBreakAction);
+            addBreakAction.setToolBarData(new ToolBarData(Icons.ADD_ICON, null));
+            addBreakAction.setEnabled(true);
+            addBreakAction.markHelpUnnecessary();
+            dockingTool.addLocalAction(this, addBreakAction);
 
-            DelBreakAction = new DockingAction("Delete breakpoint", getName()) {
+            delBreakAction = new DockingAction("Delete breakpoint", getName()) {
                 @Override
                 public void actionPerformed(ActionContext context) {
                     try {
-                        int selected = BreakpointProvider.breakTable.getSelectedRow();
-                        GhidraEmuPopup.UnSetColor(GhidraEmuProvider.breaks.get(selected));
+                        int selected = breakTable.getSelectedRow();
+                        GhidraEmuPopup.unsetColor(GhidraEmuProvider.breaks.get(selected));
                         GhidraEmuProvider.breaks.remove(selected);
-                        BreakpointProvider.Breakmodel.removeRow(selected);
+                        breakModel.removeRow(selected);
                     } catch (Exception ex) {}
                 }
             };
-            DelBreakAction.setToolBarData(new ToolBarData(Icons.DELETE_ICON, null));
-            DelBreakAction.setEnabled(true);
-            DelBreakAction.markHelpUnnecessary();
-            dockingTool.addLocalAction(this, DelBreakAction);
+            delBreakAction.setToolBarData(new ToolBarData(Icons.DELETE_ICON, null));
+            delBreakAction.setEnabled(true);
+            delBreakAction.markHelpUnnecessary();
+            dockingTool.addLocalAction(this, delBreakAction);
             actionsCreated = true;
         }
     }
@@ -121,7 +121,7 @@ public class BreakpointProvider extends ComponentProvider {
         return panel;
     }
 
-    public class HexBigIntegerTableCellRenderer extends AbstractGColumnRenderer < BigInteger > {
+    public class HexBigIntegerTableCellRenderer extends AbstractGColumnRenderer <BigInteger> {
 
         protected String formatBigInteger(BigInteger value) {
             return value == null ? "??" : value.toString(16);

@@ -43,7 +43,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public String getLocationRepresentation(BigInteger bigIndex) {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			return pad(Integer.toString(index), 8);
 		}
 		return null;
@@ -72,7 +72,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public byte getByte(BigInteger bigIndex) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			return buf[index];
 		}
 		return 0;
@@ -83,7 +83,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public int getInt(BigInteger bigIndex) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			byte[] b = new byte[4];
 			System.arraycopy(buf, index, b, 0, b.length);
 			return converter.getInt(b);
@@ -96,7 +96,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public long getLong(BigInteger bigIndex) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			byte[] b = new byte[8];
 			System.arraycopy(buf, index, b, 0, b.length);
 			return converter.getLong(b);
@@ -109,7 +109,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public void setByte(BigInteger bigIndex, byte value) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			buf[index] = value;
 		}
 	}
@@ -119,7 +119,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public void setInt(BigInteger bigIndex, int value) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			byte[] b = new byte[4];
 			converter.putInt(b, 0, value);
 			System.arraycopy(b, 0, buf, index, b.length);
@@ -131,7 +131,7 @@ class FileByteBlock implements ByteBlock {
 	 */
 	public void setLong(BigInteger bigIndex, long value) throws ByteBlockAccessException {
 		int index = bigIndex.intValue();
-		if (index < buf.length) {
+		if (index <buf.length) {
 			byte[] b = new byte[8];
 			converter.putLong(b, 0, value);
 			System.arraycopy(b, 0, buf, index, b.length);
@@ -177,7 +177,7 @@ class FileByteBlock implements ByteBlock {
 	private String pad(String str, int length) {
 		StringBuffer sb = new StringBuffer();
 		int nspaces = length - str.length();
-		for (int i = 0; i < nspaces; i++) {
+		for (int i = 0; i <nspaces; i++) {
 			sb.append(" ");
 		}
 		sb.append(str);

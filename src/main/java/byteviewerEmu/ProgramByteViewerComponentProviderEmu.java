@@ -69,19 +69,16 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 	protected Program program;
 	protected ProgramSelection currentSelection;
 	protected ProgramSelection currentHighlight;
-	protected ProgramLocation currentLocation;
-	public static Address endStack;
-	public boolean hasStack = false;
+	protected ProgramLocation currentLocation;		
 	private ClipboardService clipboardService;
 	private ByteViewerClipboardProvider clipboardProvider;
-
 	private final boolean isConnected;
-
-	private boolean disposed;
+	private boolean disposed;   
+    public static Address midStack;
 
 	public ProgramByteViewerComponentProviderEmu(PluginTool tool, ByteViewerPluginEmu byteViewerPlugin,
 			boolean isConnected) {
-		super(tool, byteViewerPlugin, "Bytes Emu", ByteViewerActionContext.class);
+		super(tool, byteViewerPlugin, "Emu Stack", ByteViewerActionContext.class);
 		setIcon(ResourceManager.loadImage("images/ico.png"));
 		this.isConnected = isConnected;
 		if (!isConnected) {
@@ -270,39 +267,35 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 // Navigatable interface methods */
 //==================================================================================================
 
-	public void setStack() {
-		try {
-			AddressFactory addrFactory = program.getAddressFactory();        	
-	    	Address ProgramEntry = program.getMinAddress();
-	        long stackOffset =
-					(ProgramEntry.getAddressSpace().getMaxAddress().getOffset() >>> 5) - 0x7fff;
-	    	
-	    	endStack = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));        
-	    	Memory memory =  program.getMemory();    	
-	    	for (MemoryBlock block : memory.getBlocks()) {
-	    		if (block.getName().equals("Stack")) {
-	    			hasStack = true;
-	    			break;
-	    		}
-	    	}
-	    	if (!hasStack) {
-	    		try {
-	        		int TransactionID = program.startTransaction("Mapping");         			
-	        		MemoryBlock newBlock = memory.createInitializedBlock("Stack",  endStack, 0x2008, (byte) 0,
-								TaskMonitor.DUMMY, false);
-					
-	        		newBlock.setPermissions(true, true, true);
-	        		program.endTransaction(TransactionID, true);
-	    		} catch (LockException | IllegalArgumentException | MemoryConflictException
-						| AddressOverflowException | CancelledException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-					        
-	    	}
-		}
-	    	catch (Exception ex) {}
-	}  	
+    public void setStack() {
+        boolean hasStack = false;
+        try {
+            AddressFactory addrFactory = program.getAddressFactory();  
+            long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff);	    	
+            midStack = addrFactory.getAddress(Long.toHexString(stackOffset));     
+            Address stackStart = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));
+            
+            Memory memory = program.getMemory();    	
+            for (MemoryBlock block : memory.getBlocks()) {
+                if (block.getName().equals("Stack")) {
+                    hasStack = true;
+                    break;
+                }
+            }
+            if (!hasStack) {
+                try {
+                    int transactionID = program.startTransaction("Mapping");         			
+                    MemoryBlock newBlock = memory.createInitializedBlock("Stack", stackStart, 0x2000, (byte) 0,
+                        TaskMonitor.DUMMY, false);                    
+                    newBlock.setPermissions(true, true, true);
+                    program.endTransaction(transactionID, true);
+                } catch (LockException | IllegalArgumentException | MemoryConflictException
+                        | AddressOverflowException | CancelledException e) {                    
+                    e.printStackTrace();
+                }                            
+            }
+        } catch (Exception ex) {}
+    }  	
     	
 	@Override
 	public ProgramLocation getLocation() {
@@ -359,7 +352,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 		int column = bvMemento.getColumn();
 
 		ByteBlock[] blocks = getByteBlocks();
-		if (blocks != null && blockNumber >= 0 && blockNumber < blocks.length) {
+		if (blocks != null && blockNumber>= 0 && blockNumber <blocks.length) {
 			ByteViewerState view = new ByteViewerState(blockSet,
 				new ByteBlockInfo(blocks[blockNumber], blockOffset, column), vp);
 			panel.returnToView(view);
@@ -675,7 +668,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 		ViewerPosition vp = new ViewerPosition(index, xOffset, yOffset);
 
 		ByteBlock[] blocks = getByteBlocks();
-		if (blocks != null && blockNumber >= 0 && blockNumber < blocks.length) {
+		if (blocks != null && blockNumber>= 0 && blockNumber <blocks.length) {
 			ByteViewerState view = new ByteViewerState(blockSet,
 				new ByteBlockInfo(blocks[blockNumber], blockOffset, column), vp);
 			panel.returnToView(view);
@@ -723,7 +716,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 	private int getBlockNumber(ByteBlockInfo info) {
 		ByteBlock[] blocks = getByteBlocks();
 		ByteBlock b = info.getBlock();
-		for (int i = 0; i < blocks.length; i++) {
+		for (int i = 0; i <blocks.length; i++) {
 			if (blocks[i] == b) {
 				return i;
 			}

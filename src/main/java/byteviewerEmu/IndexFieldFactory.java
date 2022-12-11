@@ -66,7 +66,7 @@ class IndexFieldFactory {
 		// translate index to block and offset into the block
 		ByteBlockInfo info = indexMap.getBlockInfo(index, 0);
 		if (info == null) {
-			for (int i = 0; i < indexMap.getBytesPerLine(); i++) {
+			for (int i = 0; i <indexMap.getBytesPerLine(); i++) {
 				info = indexMap.getBlockInfo(index, i);
 				if (info != null) {
 					break;
@@ -125,7 +125,7 @@ class IndexFieldFactory {
 		int nchars = width / charWidth;
 		if (indexMap != null) {
 			StringBuffer sb = new StringBuffer();
-			for (int i = 0; i < nchars; i++) {
+			for (int i = 0; i <nchars; i++) {
 				sb.append(".");
 			}
 			noValueStr = sb.toString();
