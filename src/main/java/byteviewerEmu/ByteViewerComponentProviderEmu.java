@@ -270,7 +270,7 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 			return;
 		}
 		int newOffset = blockOffset;
-		if (newOffset > bytesPerLine) {
+		if (newOffset> bytesPerLine) {
 			newOffset = newOffset % bytesPerLine;
 		}
 		this.offset = newOffset;

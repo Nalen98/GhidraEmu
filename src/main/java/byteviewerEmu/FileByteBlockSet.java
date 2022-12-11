@@ -92,7 +92,7 @@ class FileByteBlockSet implements ByteBlockSet {
 	@Override
 	public boolean isChanged(ByteBlock activeBlock, BigInteger bigIndex, int length) {
 		int index = bigIndex.intValue();
-		for (int i = 0; i < length; i++) {
+		for (int i = 0; i <length; i++) {
 			if (contains(index + i)) {
 				return true;
 			}
@@ -108,7 +108,7 @@ class FileByteBlockSet implements ByteBlockSet {
 			byte[] newValue) {
 		int index = bigIndex.intValue();
 
-		for (int i = 0; i < oldValue.length; i++) {
+		for (int i = 0; i <oldValue.length; i++) {
 			if (oldValue[i] == newValue[i]) {
 				continue;
 			}
@@ -133,7 +133,7 @@ class FileByteBlockSet implements ByteBlockSet {
 	}
 
 	private boolean contains(int index) {
-		for (int i = 0; i < changeList.size(); i++) {
+		for (int i = 0; i <changeList.size(); i++) {
 			EditInfo info = changeList.get(i);
 			if (index == info.index) {
 				return true;

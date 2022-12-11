@@ -16,13 +16,13 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryAccessException;
 
 public class GhidraEmuPopup extends ListingContextAction {
-    public final String MenuName = "GhidraEmu";
-    public final String Group_Name = "GhidraEmu";
+    public final String menuName = "GhidraEmu";
+    public final String groupName = "GhidraEmu";
     public static PluginTool tool;
     public static Program program;
     public static Address start_address = null;
     public static Address stop_address = null;
-    public static ArrayList < PatchedBytes > bytesToPatch = new ArrayList < PatchedBytes > ();
+    public static ArrayList <PatchedBytes> bytesToPatch = new ArrayList <PatchedBytes> ();
 
     public GhidraEmuPopup(GhidraEmuPlugin plugin, Program program) {
         super("GhidraEmuPlugin", plugin.getName());
@@ -35,57 +35,67 @@ public class GhidraEmuPopup extends ListingContextAction {
         program = p;
     }
 
+    public static class PatchedBytes {
+        public Address start;
+        public byte[] bytes;
+
+        PatchedBytes(Address start, byte[] bytes) {
+            this.start = start;
+            this.bytes = bytes;
+        }
+    }
+
     public void setupActions() {
         tool.setMenuGroup(new String[] {
-            MenuName
-        }, Group_Name);
+            menuName
+        }, groupName);
 
-        ListingContextAction EmuStart = new ListingContextAction("Start emulation here", getName()) {
+        ListingContextAction emuStart = new ListingContextAction("Start emulation here", getName()) {
             @Override
             protected void actionPerformed(ListingActionContext context) {
                 if (context.getLocation().getAddress() != start_address) {
                     if (start_address != null) {
-                        UnSetColor(start_address);
+                        unsetColor(start_address);
                     }
-                    start_address = context.getLocation().getAddress();
-                    SetColor(start_address, Color.GREEN);
-                    RegisterProvider.setRegister(RegisterProvider.PC, start_address);
-                    GhidraEmuProvider.StartTF.setText("0x" + context.getLocation().getAddress().toString());
+                    start_address = context.getLocation().getAddress();                   
+                    setColor(start_address, Color.GREEN);
+                    RegisterProvider.setRegister(RegisterProvider.PC, start_address.getOffsetAsBigInteger());
+                    GhidraEmuProvider.startTF.setText("0x" + Long.toHexString(start_address.getOffset()));
                 }
             }
         };
-        EmuStart.setKeyBindingData(new KeyBindingData(KeyEvent.VK_Z, 0));
-        EmuStart.setPopupMenuData(new MenuData(new String[] {
-            MenuName,
+        emuStart.setKeyBindingData(new KeyBindingData(KeyEvent.VK_Z, 0));
+        emuStart.setPopupMenuData(new MenuData(new String[] {
+            menuName,
             "Start emulation here"
-        }, null, Group_Name));
-        tool.addAction(EmuStart);
+        }, null, groupName));
+        tool.addAction(emuStart);
 
-        ListingContextAction EmuStop = new ListingContextAction("Stop emulation here", getName()) {
+        ListingContextAction emuStop = new ListingContextAction("Stop emulation here", getName()) {
             @Override
             protected void actionPerformed(ListingActionContext context) {
                 if (context.getLocation().getAddress() != stop_address) {
                     if (stop_address != null) {
-                        UnSetColor(stop_address);
+                        unsetColor(stop_address);
                     }
                     stop_address = context.getLocation().getAddress();
-                    SetColor(stop_address, Color.CYAN);
-                    GhidraEmuProvider.StopTF.setText("0x" + context.getLocation().getAddress().toString());
+                    setColor(stop_address, Color.CYAN);
+                    GhidraEmuProvider.stopTF.setText("0x" + Long.toHexString(stop_address.getOffset()));
                 }
             }
         };
-        EmuStop.setKeyBindingData(new KeyBindingData(KeyEvent.VK_X, 0));
-        EmuStop.setPopupMenuData(new MenuData(new String[] {
-            MenuName,
+        emuStop.setKeyBindingData(new KeyBindingData(KeyEvent.VK_X, 0));
+        emuStop.setPopupMenuData(new MenuData(new String[] {
+            menuName,
             "Stop emulation here"
-        }, null, Group_Name));
-        tool.addAction(EmuStop);
+        }, null, groupName));
+        tool.addAction(emuStop);
 
-        ListingContextAction ApplyPatchedBytes = new ListingContextAction("Apply Patched Bytes", getName()) {
+        ListingContextAction applyPatchedBytes = new ListingContextAction("Apply Patched Bytes", getName()) {
             @Override
             protected void actionPerformed(ListingActionContext context) {
-                Address StartAddress = context.getSelection().getMinAddress();
-                List < Byte > patched = new ArrayList < Byte > ();
+                Address startAddress = context.getSelection().getMinAddress();
+                List <Byte> patched = new ArrayList <Byte> ();
                 for (Address address: context.getSelection().getAddresses(true)) {
                     byte Byte = 0;
                     try {
@@ -101,77 +111,68 @@ public class GhidraEmuPopup extends ListingContextAction {
                     pbytes[counter] = b;
                     counter++;
                 }
-                bytesToPatch.add(new PatchedBytes(StartAddress, pbytes));
+                bytesToPatch.add(new PatchedBytes(startAddress, pbytes));
             }
         };
-
-        ApplyPatchedBytes.setPopupMenuData(new MenuData(new String[] {
-            MenuName,
+        applyPatchedBytes.setKeyBindingData(new KeyBindingData(KeyEvent.VK_M, 0));
+        applyPatchedBytes.setPopupMenuData(new MenuData(new String[] {
+            menuName,
             "Apply Patched Bytes"
-        }, null, Group_Name));
-        tool.addAction(ApplyPatchedBytes);
+        }, null, groupName));
+        tool.addAction(applyPatchedBytes);
 
-        ListingContextAction SetBreak = new ListingContextAction("Add breakpoint", getName()) {
+        ListingContextAction setBreak = new ListingContextAction("Add breakpoint", getName()) {
             @Override
             protected void actionPerformed(ListingActionContext context) {
                 Address address = context.getLocation().getAddress();
-                SetColor(address, Color.RED);
+                setColor(address, Color.RED);                
                 if (!GhidraEmuProvider.breaks.contains(address)) {
                     GhidraEmuProvider.breaks.add(address);
-                    BreakpointProvider.Breakmodel.addRow(new Object[] {
-                        BreakpointProvider.BIcon, BigInteger.valueOf(address.getOffset())
+                    BreakpointProvider.breakModel.addRow(new Object[] {
+                        BreakpointProvider.breakpointIcon, address.getOffsetAsBigInteger()
                     });
                 }
             }
         };
-        SetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_K, 0));
-        SetBreak.setPopupMenuData(new MenuData(new String[] {
-            MenuName,
+        setBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_K, 0));
+        setBreak.setPopupMenuData(new MenuData(new String[] {
+            menuName,
             "Add breakpoint"
-        }, null, Group_Name));
-        tool.addAction(SetBreak);
-        ListingContextAction UnSetBreak = new ListingContextAction("Delete breakpoint", getName()) {
+        }, null, groupName));
+        tool.addAction(setBreak);
+        ListingContextAction unsetBreak = new ListingContextAction("Delete breakpoint", getName()) {
             @Override
             protected void actionPerformed(ListingActionContext context) {
                 Address address = context.getLocation().getAddress();
-                UnSetColor(address);
+                unsetColor(address);
                 GhidraEmuProvider.breaks.remove(address);
-                for (int i = 0; i < BreakpointProvider.Breakmodel.getRowCount(); i++) {
-                    if (BreakpointProvider.Breakmodel.getValueAt(i, 1).equals(BigInteger.valueOf(address.getOffset()))) {
-                        BreakpointProvider.Breakmodel.removeRow(i);
+                for (int i = 0; i <BreakpointProvider.breakModel.getRowCount(); i++) {
+                    if (BreakpointProvider.breakModel.getValueAt(i, 1).equals(address.getOffsetAsBigInteger())) {
+                        BreakpointProvider.breakModel.removeRow(i);
                     }
                 }
             }
         };
-        UnSetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_J, 0));
-        UnSetBreak.setPopupMenuData(new MenuData(new String[] {
-            MenuName,
+        unsetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_J, 0));
+        unsetBreak.setPopupMenuData(new MenuData(new String[] {
+            menuName,
             "Delete breakpoint"
-        }, null, Group_Name));
-        tool.addAction(UnSetBreak);
+        }, null, groupName));
+        tool.addAction(unsetBreak);
     }
 
-    public static void UnSetColor(Address address) {
+    public static void unsetColor(Address address) {
         ColorizingService service = tool.getService(ColorizingService.class);
-        int TransactionID = program.startTransaction("UnSetColor");
+        int transactionID = program.startTransaction("UnSetColor");
         service.clearBackgroundColor(address, address);
-        program.endTransaction(TransactionID, true);
+       // service.clear
+        program.endTransaction(transactionID, true);
     }
 
-    public static void SetColor(Address address, Color color) {
+    public static void setColor(Address address, Color color) {
         ColorizingService service = tool.getService(ColorizingService.class);
-        int TransactionID = program.startTransaction("SetColor");
+        int transactionID = program.startTransaction("SetColor");
         service.setBackgroundColor(address, address, color);
-        program.endTransaction(TransactionID, true);
-    }
-
-    public static class PatchedBytes {
-        public Address start;
-        public byte[] bytes;
-
-        PatchedBytes(Address start, byte[] bytes) {
-            this.start = start;
-            this.bytes = bytes;
-        }
+        program.endTransaction(transactionID, true);
     }
 }

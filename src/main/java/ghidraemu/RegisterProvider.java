@@ -34,17 +34,17 @@ public class RegisterProvider extends ComponentProvider {
     };
     public Program program;
     public static GhidraTable regtable;
-    public List < Register > ProgramRegisters;
-    public static List < String > RegList;
-    public static List < RegVal > RegsVals;
+    public List <Register> programRegisters;
+    public static List <String> regList;
+    public static List <RegVal> regsVals;
     public static String PC;
     public static String SP;
     private boolean actionsCreated;
-    private DockingAction SetReturnReg;
+    private DockingAction setReturnReg;
     public BigInteger newVal;
     public static DefaultTableModel regmodel;
-    public Color registerChangesColor = DebuggerResources.DEFAULT_COLOR_REGISTER_CHANGED;
-    public static ArrayList < Register > ConventionRegs;
+    public Color registerChangesColor;
+    public static ArrayList <Register> conventionRegs;
     public static String returnReg;
 
     public RegisterProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
@@ -54,6 +54,7 @@ public class RegisterProvider extends ComponentProvider {
         setWindowMenuGroup("GhidraEmu");
         actionsCreated = false;
         returnReg = null;
+        registerChangesColor = DebuggerResources.DEFAULT_COLOR_REGISTER_CHANGED;
     }
 
     /**
@@ -67,33 +68,33 @@ public class RegisterProvider extends ComponentProvider {
                 return column == 1;
             }
         };
-        RegList = new ArrayList < > ();
-        ProgramRegisters = program.getProgramContext().getRegisters();
+        regList = new ArrayList <> ();
+        programRegisters = program.getProgramContext().getRegisters();
 
-        for (Register reg: ProgramRegisters) {
+        for (Register reg: programRegisters) {
             if (!reg.isHidden() && reg.isBaseRegister()) {
                 if (reg.isProgramCounter()) {
                     PC = reg.getName();
-                    RegList.add(0, reg.getName());
+                    regList.add(0, reg.getName());
                     continue;
                 }
-                RegList.add(reg.getName());
+                regList.add(reg.getName());
             }
         }
-        RegsVals = new ArrayList < RegVal > ();
-        for (String reg_name: RegList) {
-            RegsVals.add(new RegVal(BigInteger.valueOf(0), false));
+        regsVals = new ArrayList <RegVal> ();
+        for (String reg_name: regList) {
+            regsVals.add(new RegVal(BigInteger.valueOf(0), false));
             regmodel.addRow(new Object[] {
                 reg_name,
                 BigInteger.valueOf(0)
             });
         }
-        ConventionRegs = new ArrayList < Register > ();
-        var VarStorage = program.getCompilerSpec().getDefaultCallingConvention().getPotentialInputRegisterStorage(program);
-        for (var StorageReg: VarStorage) {
-            Register reg = StorageReg.getRegister();
+        conventionRegs = new ArrayList <Register> ();
+        var varStorage = program.getCompilerSpec().getDefaultCallingConvention().getPotentialInputRegisterStorage(program);
+        for (var storageReg: varStorage) {
+            Register reg = storageReg.getRegister();
             if (reg.isBaseRegister() && !reg.getName().contains("_")) {
-                ConventionRegs.add(reg);
+                conventionRegs.add(reg);
             }
         }
         regtable = new GhidraTable(regmodel);
@@ -102,7 +103,7 @@ public class RegisterProvider extends ComponentProvider {
                 TableCellListener tcl = (TableCellListener) e.getSource();
                 newVal = (BigInteger) tcl.getNewValue();
                 int rowVal = tcl.getRow();
-                RegsVals.set(rowVal, new RegVal(newVal, true));
+                regsVals.set(rowVal, new RegVal(newVal, true));
             }
         };
         regtable.getColumnModel().getColumn(1).setMinWidth(100);
@@ -127,7 +128,7 @@ public class RegisterProvider extends ComponentProvider {
         return panel;
     }
 
-    public class HexBigIntegerTableCellRenderer extends AbstractGColumnRenderer < BigInteger > {
+    public class HexBigIntegerTableCellRenderer extends AbstractGColumnRenderer <BigInteger> {
         protected String formatBigInteger(BigInteger value) {
             return value == null ? "??" : value.toString(16);
         }
@@ -136,7 +137,7 @@ public class RegisterProvider extends ComponentProvider {
         public Component getTableCellRendererComponent(GTableCellRenderingData data) {
             super.getTableCellRendererComponent(data);
             setText(formatBigInteger((BigInteger) data.getValue()));
-            if (RegsVals.get(data.getRowViewIndex()).isEdited == true) {
+            if (regsVals.get(data.getRowViewIndex()).isEdited == true) {
                 setForeground(registerChangesColor);
                 regtable.repaint();
             }
@@ -151,14 +152,14 @@ public class RegisterProvider extends ComponentProvider {
 
     public static void setRegister(String register, Address address) {
         int counter = 0;
-        for (String reg: RegList) {
+        for (String reg: regList) {
             if (reg.equals(register)) {
-                if (!BigInteger.valueOf(address.getOffset()).equals(RegsVals.get(counter).value)) {
-                    RegsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), true));
+                if (!BigInteger.valueOf(address.getOffset()).equals(regsVals.get(counter).value)) {
+                    regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), true));
                     regtable.setValueAt(BigInteger.valueOf(address.getOffset()), counter, 1);
                     break;
                 }
-                RegsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), false));
+                regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), false));
             }
             counter++;
         }
@@ -166,14 +167,14 @@ public class RegisterProvider extends ComponentProvider {
 
     public static void setRegister(String register, BigInteger value) {
         int counter = 0;
-        for (String reg: RegList) {
+        for (String reg: regList) {
             if (reg.equals(register)) {
-                if (!value.equals(RegsVals.get(counter).value)) {
-                    RegsVals.set(counter, new RegVal(value, true));
+                if (!value.equals(regsVals.get(counter).value)) {
+                    regsVals.set(counter, new RegVal(value, true));
                     regtable.setValueAt(value, counter, 1);
                     break;
                 }
-                RegsVals.set(counter, new RegVal(value, false));
+                regsVals.set(counter, new RegVal(value, false));
             }
             counter++;
         }
@@ -181,9 +182,9 @@ public class RegisterProvider extends ComponentProvider {
 
     public static void setRegister(String register, BigInteger value, boolean isEdited) {
         int counter = 0;
-        for (String reg: RegList) {
+        for (String reg: regList) {
             if (reg.equals(register)) {
-                RegsVals.set(counter, new RegVal(value, isEdited));
+                regsVals.set(counter, new RegVal(value, isEdited));
                 regtable.setValueAt(value, counter, 1);
                 break;
             }
@@ -203,20 +204,20 @@ public class RegisterProvider extends ComponentProvider {
 
     private void createActions() {
         if (!actionsCreated) {
-            SetReturnReg = new DockingAction("Set as link register", getName()) {
+            setReturnReg = new DockingAction("Set as link register", getName()) {
                 @Override
                 public void actionPerformed(ActionContext context) {
                     try {
                         int selected = regtable.getSelectedRow();
-                        returnReg = RegList.get(selected);
+                        returnReg = regList.get(selected);
                         JOptionPane.showMessageDialog(null, "Link register (" + returnReg + ") is set!");
                     } catch (Exception ex) {}
                 }
             };
-            SetReturnReg.setToolBarData(new ToolBarData(Icons.ARROW_DOWN_RIGHT_ICON, null));
-            SetReturnReg.setEnabled(true);
-            SetReturnReg.markHelpUnnecessary();
-            dockingTool.addLocalAction(this, SetReturnReg);
+            setReturnReg.setToolBarData(new ToolBarData(Icons.ARROW_DOWN_RIGHT_ICON, null));
+            setReturnReg.setEnabled(true);
+            setReturnReg.markHelpUnnecessary();
+            dockingTool.addLocalAction(this, setReturnReg);
             actionsCreated = true;
         }
     }

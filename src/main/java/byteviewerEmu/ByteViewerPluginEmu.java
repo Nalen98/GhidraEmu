@@ -178,7 +178,7 @@ public class ByteViewerPluginEmu extends Plugin {
 			connectedProvider.readDataState(saveState);
 
 			int numDisconnected = saveState.getInt("Num Disconnected", 0);
-			for (int i = 0; i < numDisconnected; i++) {
+			for (int i = 0; i <numDisconnected; i++) {
 				Element xmlElement = saveState.getXmlElement("Provider" + i);
 				SaveState providerSaveState = new SaveState(xmlElement);
 				String programPath = providerSaveState.getString("Program Path", "");

@@ -50,7 +50,7 @@ public class IndexMap {
 		this.bytesInLine = BigInteger.valueOf(bytesPerLine);
 
 		BigInteger nextStart = BigInteger.ZERO;
-		for (int i = 0; i < blocks.length; i++) {
+		for (int i = 0; i <blocks.length; i++) {
 			int blockPadding =
 				((blocks[i].getAlignment(bytesPerLine) + blockOffset) % bytesPerLine);
 			BigInteger blockStart = nextStart.add(BigInteger.valueOf(blockPadding));
@@ -95,8 +95,8 @@ public class IndexMap {
 		}
 		BlockInfo blockInfo = tailMap.get(tailMap.firstKey());
 		BigInteger byteIndex = index.multiply(bytesInLine).add(BigInteger.valueOf(fieldOffset));
-		if ((byteIndex.compareTo(blockInfo.blockStart) >= 0) &&
-			(byteIndex.compareTo(blockInfo.blockEnd) < 0)) {
+		if ((byteIndex.compareTo(blockInfo.blockStart)>= 0) &&
+			(byteIndex.compareTo(blockInfo.blockEnd) <0)) {
 			return new ByteBlockInfo(blockInfo.block, byteIndex.subtract(blockInfo.blockStart));
 		}
 		return null;
@@ -135,7 +135,7 @@ public class IndexMap {
 
 	int getFieldOffset(BigInteger index, int fieldNum, FieldFactory[] factorys) {
 		int numFields = 0;
-		for (int i = 0; i < factorys.length; i++) {
+		for (int i = 0; i <factorys.length; i++) {
 			ByteField bf = (ByteField) factorys[i].getField(index);
 			if (bf != null) {
 				if (numFields == fieldNum) {
@@ -144,12 +144,12 @@ public class IndexMap {
 				numFields++;
 			}
 		}
-		return (numFields > 0) ? factorys[numFields - 1].getFieldOffset() : 0;
+		return (numFields> 0) ? factorys[numFields - 1].getFieldOffset() : 0;
 	}
 
 	int getFieldNum(BigInteger index, int fieldOffset, FieldFactory[] factorys) {
 		int fieldNum = 0;
-		for (int j = 0; j < factorys.length; j++) {
+		for (int j = 0; j <factorys.length; j++) {
 			ByteField bf = (ByteField) factorys[j].getField(index);
 			if (bf != null) {
 				if (bf.getFieldOffset() == fieldOffset) {
@@ -158,7 +158,7 @@ public class IndexMap {
 				fieldNum++;
 			}
 		}
-		if (fieldNum >= factorys.length) {
+		if (fieldNum>= factorys.length) {
 			fieldNum = 0;
 		}
 		return fieldNum;

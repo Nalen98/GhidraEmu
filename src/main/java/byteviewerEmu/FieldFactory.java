@@ -195,7 +195,7 @@ class FieldFactory {
 	private String getString(String value) {
 		StringBuffer sb = new StringBuffer();
 		int count = model.getDataUnitSymbolSize();
-		for (int i = 0; i < count; i++) {
+		for (int i = 0; i <count; i++) {
 			sb.append(value);
 		}
 		return sb.toString();

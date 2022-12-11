@@ -66,7 +66,7 @@ class ByteBlockChangeManager {
 
 		Address blockAddr = edit.getBlockAddress();
 		BigInteger offset = edit.getOffset();
-		for (int i = 0; i < oldValue.length; i++) {
+		for (int i = 0; i <oldValue.length; i++) {
 			if (oldValue[i] == newValue[i]) {
 				continue;
 			}
@@ -82,10 +82,10 @@ class ByteBlockChangeManager {
 	SaveState getUndoRedoState() {
 		SaveState saveState = new SaveState();
 		int changeCount = changeList.size();
-		for (int i = 0; i < changeList.size(); i++) {
+		for (int i = 0; i <changeList.size(); i++) {
 			ByteEditInfo edit = changeList.get(i);
 			int blockNumber = blockSet.getByteBlockNumber(edit.getBlockAddress());
-			if (blockNumber >= 0) {
+			if (blockNumber>= 0) {
 				++changeCount;
 				saveState.putInt(BLOCK_NUMBER + i, blockNumber);
 				saveState.putString(BLOCK_OFFSET + i, edit.getOffset().toString());
@@ -103,7 +103,7 @@ class ByteBlockChangeManager {
 	void restoreUndoRedoState(SaveState saveState) {
 		changeList.clear();
 		int numberOfChanges = saveState.getInt(NUMBER_OF_CHANGES, 0);
-		for (int i = 0; i < numberOfChanges; i++) {
+		for (int i = 0; i <numberOfChanges; i++) {
 			int blockNumber = saveState.getInt(BLOCK_NUMBER + i, 0);
 			BigInteger blockOffset = new BigInteger(saveState.getString(BLOCK_OFFSET + i, "0"));
 			byte[] oldValue = saveState.getBytes(OLD_VALUE + i, null);
@@ -128,7 +128,7 @@ class ByteBlockChangeManager {
 	 */
 	boolean isChanged(ByteBlock block, BigInteger offset, int unitByteSize) {
 		Address blockAddr = blockSet.getBlockStart(block);
-		for (int i = 0; i < unitByteSize; i++) {
+		for (int i = 0; i <unitByteSize; i++) {
 
 			if (contains(blockAddr, offset.add(BigInteger.valueOf(i)))) {
 				return true;
@@ -145,7 +145,7 @@ class ByteBlockChangeManager {
 	 * @param offset offset into the block
 	 */
 	private boolean contains(Address blockAddr, BigInteger offset) {
-		for (int i = 0; i < changeList.size(); i++) {
+		for (int i = 0; i <changeList.size(); i++) {
 			ByteEditInfo edit = changeList.get(i);
 			if (edit.getBlockAddress().compareTo(blockAddr) == 0 &&
 				edit.getOffset().equals(offset)) {
