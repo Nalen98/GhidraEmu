@@ -590,8 +590,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                             // Only applicable to pointers because data bytes 
                             // don't need to be updated (already)
                             updatePtrUnstable(start);                            	
-                        }           
-                    }
+                            }           
+                        }
                     } catch (ghidra.pcode.error.LowlevelError e ) {            
                         e.printStackTrace();    
                         return false;               
@@ -904,6 +904,9 @@ public class GhidraEmuProvider extends ComponentProvider {
         catch (Exception ex) {}
         emuHelper = null;        
         message = null;
+        if (endLocation != null){
+            GhidraEmuPopup.unsetColor(endLocation.getAddress()); 
+        }
         endLocation = null;       
         plugin.console.clearMessages();
         

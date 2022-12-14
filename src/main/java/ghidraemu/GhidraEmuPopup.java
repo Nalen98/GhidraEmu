@@ -162,17 +162,22 @@ public class GhidraEmuPopup extends ListingContextAction {
     }
 
     public static void unsetColor(Address address) {
-        ColorizingService service = tool.getService(ColorizingService.class);
-        int transactionID = program.startTransaction("UnSetColor");
-        service.clearBackgroundColor(address, address);
-       // service.clear
-        program.endTransaction(transactionID, true);
+        try {
+            ColorizingService service = tool.getService(ColorizingService.class);
+            int transactionID = program.startTransaction("UnSetColor");
+            service.clearBackgroundColor(address, address);      
+            program.endTransaction(transactionID, true);
+        }
+        catch (Exception ex) { ex.printStackTrace(); };
     }
 
     public static void setColor(Address address, Color color) {
-        ColorizingService service = tool.getService(ColorizingService.class);
-        int transactionID = program.startTransaction("SetColor");
-        service.setBackgroundColor(address, address, color);
-        program.endTransaction(transactionID, true);
+        try {
+            ColorizingService service = tool.getService(ColorizingService.class);
+            int transactionID = program.startTransaction("SetColor");
+            service.setBackgroundColor(address, address, color);
+            program.endTransaction(transactionID, true);
+        }
+        catch (Exception ex) { ex.printStackTrace(); };
     }
 }
