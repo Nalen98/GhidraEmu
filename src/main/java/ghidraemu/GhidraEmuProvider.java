@@ -94,6 +94,7 @@ public class GhidraEmuProvider extends ComponentProvider {
     public EmuRun sw;
     public ProgramLocation endLocation;
     public String message;
+    public String processorName;
     private ArrayList <ExternalFunction> implementedFuncsPtrs;
     private ArrayList <ExternalFunction> unimplementedFuncsPtrs;
     private ArrayList <ExternalFunction> computedCalls;
@@ -149,8 +150,11 @@ public class GhidraEmuProvider extends ComponentProvider {
         @Override
         protected void done() {        	                              
             if (endLocation != null){                            
-                lpanel.scrollTo(endLocation);
-                GhidraEmuPopup.setColor(endLocation.getAddress(), Color.getHSBColor(247, 224, 98)); 
+            	try {
+	                lpanel.scrollTo(endLocation);
+	                GhidraEmuPopup.setColor(endLocation.getAddress(), Color.getHSBColor(247, 224, 98)); 
+            	}
+            	catch (Exception ex) {};
             }    
             if (addressesToUpdate != null){
                 for (Address start : addressesToUpdate.keySet()){
@@ -408,7 +412,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     }
 
-    public Boolean updateStopEmu(){
+    public boolean updateStopEmu(){
         // get end address
         if (!stopTF.getText().equals("")) {
             if (stopTF.getText().matches("0x[0-9A-Fa-f]+") == false) {
@@ -465,21 +469,28 @@ public class GhidraEmuProvider extends ComponentProvider {
             };
             context = new VarnodeContext(program, new ProgramContextImpl(program.getLanguage()), new ProgramContextImpl(program.getLanguage()));
             message = null;
-            endLocation = null;            
-            stackStart = program.getMemory().getBlock("Stack").getStart();
+            endLocation = null;     
+            
+            // get processor name
+            processorName = program.getLanguage().getProcessor().toString();
+            
+            stackStart = program.getMemory().getBlock("Stack").getStart();          
             stackSize = (int)program.getMemory().getBlock("Stack").getSize();
             long stackPointerAsLong = stackStart.getOffset() + stackSize/2;
-            stackPointer = getAddressfromLong(stackPointerAsLong);
+            if (processorName.equalsIgnoreCase("V850")){
+                stackPointerAsLong = 0xFFFFFFFF;					
+            }
+            stackPointer = getAddressfromLong(stackPointerAsLong);            
             
             //save FileBytes to restore the original bytes of the binary changed by user (experimental)
-            binBytes = program.getMemory().getAllFileBytes(); 
-            
-            //set SP register for emulator
+            binBytes = program.getMemory().getAllFileBytes();             
+           
+            //set SP register for emulator         
             emuHelper.writeRegister(emuHelper.getStackPointerRegister(), stackPointerAsLong);
-
+            
             //update RegisterView with new SP value	            
             RegisterProvider.setRegister(emuHelper.getStackPointerRegister().getName(), stackPointer);
-
+            
             //set registers
             setEmuRegisters();
 
@@ -511,7 +522,7 @@ public class GhidraEmuProvider extends ComponentProvider {
     }
 
     public void runEmulation() {   
-        Boolean isFirstLaunch = false;     
+        boolean isFirstLaunch = false;     
         if (emuHelper == null) {
             if (!initEmulation()){
                 return;
@@ -559,13 +570,13 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     }
 
-    public boolean readMemFromEmu(Boolean isRunning) {        
+    public boolean readMemFromEmu(boolean isRunning) {        
         AddressSetView changedAddresses =  emuHelper.getTrackedMemoryWriteSet();           	
         for (AddressRange addressSet : changedAddresses) {    		
             Address start = addressSet.getMinAddress();    		
             int len = (int) addressSet.getLength();                 		
-            if (start.getAddressSpace().getName().equalsIgnoreCase("ram")) {   
-                Boolean isEnoughSpace = false;
+            if (start.getAddressSpace().getName().equalsIgnoreCase("ram")) { 
+                boolean isEnoughSpace = false;
                 while (!isEnoughSpace){
                     try {
                         if (!program.getMemory().getBlock("Stack").contains(start) && !origBytes.containsKey(start)){
@@ -597,29 +608,45 @@ public class GhidraEmuProvider extends ComponentProvider {
                         return false;               
                     } catch (ghidra.program.model.mem.MemoryAccessException e ) {  
                         e.printStackTrace();
-                        if (e.getMessage().contains("ram:fff")) {
-                            // yes, it looks weird but it's kind of signal that user 
-                            // was probably mistaken in emulation init
-                            return false;
-                        }
-                        // set more space for stack
-                        MemoryBlock expandBlock = program.getMemory().getBlock("Stack");
-                        Memory memory = program.getMemory();
-                        MemoryBlock newBlock;
-                        try {
-                            stackSize = stackSize + 0x1000;
-                            stackStart = getAddressfromLong(stackStart.getOffset() - 0x1000);
-                            newBlock = memory.createInitializedBlock("Stack", 
-                                stackStart, 0x1000, (byte) 0, TaskMonitor.DUMMY, false);						         
-                            memory.join(newBlock, expandBlock);
-                        } catch (MemoryBlockException | NotFoundException ex) {								
-                            ex.printStackTrace();
-                            return false;
-                        } catch (LockException | IllegalArgumentException | MemoryConflictException
-                            | AddressOverflowException | CancelledException ex) {							
-                            ex.printStackTrace();
-                            return false;
-                        } 
+                        if (e.getMessage().contains("Unable to read bytes at ram")){
+                        	// If the error has something to do with the fact that not enough stack is allocated, 
+                        	// it is necessary to recognize and fix it. Otherwise, we are dealing with uninitialized 
+                        	// memory and it must be corrected by the user himself.
+                      
+                        	String conflictAddressStr = e.getMessage().substring(e.getMessage().indexOf("ram:") + 4);
+                        	Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);
+                        	if (stackStart.getOffset() - conflictAddress.getOffset() < 0x1000) {
+                        		// set more space for stack
+                                MemoryBlock expandBlock = program.getMemory().getBlock("Stack");
+                                Memory memory = program.getMemory();
+                                MemoryBlock newBlock;
+                                try {
+                                    stackSize = stackSize + 0x1000;                            
+                                    stackStart = getAddressfromLong(stackStart.getOffset() - 0x1000);
+                                    newBlock = memory.createInitializedBlock("Stack", 
+                                            stackStart, 0x1000, (byte) 0, TaskMonitor.DUMMY, false);
+                                    memory.join(newBlock, expandBlock);
+                                } catch (MemoryBlockException | NotFoundException ex) {								
+                                    ex.printStackTrace();
+                                    return false;
+                                } catch (LockException | IllegalArgumentException | MemoryConflictException
+                                    | AddressOverflowException | CancelledException ex) {							
+                                    ex.printStackTrace();
+                                    return false;
+                                } 
+                        	} else {
+                        		// uninitialized memory
+                        		String errMsg = e.getMessage();
+                        		if (isRunning) {
+                                    if (!sw.isCancelled()){
+                                        sw.publishWrap(errMsg);
+                                    }
+                                } else {
+                                    plugin.console.addMessage(originator, errMsg);
+                                }   
+                        		return false;
+                        	}      
+                        }            
                     }
                 }               
             }
@@ -637,7 +664,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         emuHelper.writeMemory(stackStart, dest);
     }
 
-    public void setEmuRegisters() {
+    public void setEmuRegisters() {    	
         int counter = 0;
         for (String reg: RegisterProvider.regList) {
             try {
@@ -671,7 +698,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             JOptionPane.showMessageDialog(null, e.getStackTrace());
             resetState();
             return;
-        }
+        }        
         Address executionAddress = emuHelper.getExecutionAddress();
         readEmuRegisters();
         if (!readMemFromEmu(false)){
@@ -839,9 +866,11 @@ public class GhidraEmuProvider extends ComponentProvider {
         return false;
     }
 
-    public void stopEmulationLight(Address executionAddress, Boolean isRunning){  
-        emuHelper.dispose();
-        emuHelper = null;
+    public void stopEmulationLight(Address executionAddress, boolean isRunning){  
+    	if (emuHelper != null) {
+    		emuHelper.dispose();
+    		emuHelper = null;
+    	}
         
         if (executionAddress!=null) {
             endLocation = new ProgramLocation(program, executionAddress);
@@ -850,9 +879,12 @@ public class GhidraEmuProvider extends ComponentProvider {
             endLocation = new ProgramLocation(program, traced.get(traced.size()-2));
         }
         if (!isRunning) {
+        	try {
                 GhidraEmuPopup.setColor(endLocation.getAddress(), Color.orange); 
                 lpanel.scrollTo(endLocation);
-                JOptionPane.showMessageDialog(null, message);        	
+                JOptionPane.showMessageDialog(null, message);    
+        	}
+        	catch (Exception ex) {};
         }
     }
 
@@ -1015,7 +1047,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     }
 
-    public void ipBack(Boolean isRunning) {
+    public void ipBack(boolean isRunning) {
         try {
             if (program.getLanguage().getProcessor().toString().equals("AARCH64")) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("x30"));
@@ -1095,7 +1127,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         return program.getAddressFactory().getDefaultAddressSpace().getAddress(offset);
     }
     
-    public void emulateKnownFunc(ExternalFunction func, Boolean isRunning) {
+    public void emulateKnownFunc(ExternalFunction func, boolean isRunning) {
         BigInteger operandValue = emuHelper.readRegister(RegisterProvider.conventionRegs.get(0));
         Address operandValueAddr = program.getAddressFactory().getAddress(operandValue.toString(16));
         switch(func.function.getName()) {
