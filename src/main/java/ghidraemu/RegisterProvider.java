@@ -70,15 +70,18 @@ public class RegisterProvider extends ComponentProvider {
         };
         regList = new ArrayList <> ();
         programRegisters = program.getProgramContext().getRegisters();  
-        
+        String processorName = program.getLanguage().getProcessor().toString();
+        Boolean isV850 = processorName.equalsIgnoreCase("V850");
         for (Register reg: programRegisters) {
             if (!reg.isHidden()) {
-                if (reg.isProgramCounter()) {
-                    PC = reg.getName();
-                    regList.add(0, reg.getName());
-                    continue;
-                }              
-                regList.add(reg.getName());
+                if (isV850 || (!isV850 && reg.isBaseRegister())) {            	
+                    if (reg.isProgramCounter()) {
+                        PC = reg.getName();
+                        regList.add(0, reg.getName());
+                        continue;
+                    }              
+                    regList.add(reg.getName());   
+                }
             }
         }
         regsVals = new ArrayList <RegVal> ();
