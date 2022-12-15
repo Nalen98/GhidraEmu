@@ -209,7 +209,13 @@ public class GhidraEmuProvider extends ComponentProvider {
         stepBtn.setIcon(stepIcon);
         stepBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
-                stepEmulation();
+                if (sw == null) {
+                    stepEmulation();
+                } else {
+                    if (sw.isDone() || sw.isCancelled()) {
+                        stepEmulation();
+                    }
+                }
             }
         });
         

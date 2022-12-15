@@ -3,7 +3,7 @@
 <p align="center"><img src="./images/logo.png" width="300" height="300">
 
 <br></br>
-This Ghidra plugin allows you to easily deal with native pcode emulation. No scripts anymore, just use it from Ghidra. It can be useful for working with a variety of exotic processors, support for which is not implemented in common emulators.
+This experimental Ghidra plugin allows you to easily deal with native pcode emulation. No scripts anymore, just use it from Ghidra. It can be useful for working with a variety of exotic processors, support for which is not implemented in common emulators.
 
 If the processor/vm supported by Ghidra for reverse engineering — it can be emulated! Example, eBPF instructions emulation below:
 
@@ -21,8 +21,10 @@ If the processor/vm supported by Ghidra for reverse engineering — it can be em
   * Displaying of changed bytes during emulation in Ghidra's ByteViewer
   * Hook some libc functions (but it is still poor)
 
+Although PCode emulation ideally implies the unification, most processors need their own approach, so feel free to contact the issue if you encounter errors. I would really like to test all of procs, but it's hardly possible.
+
  ## What it can't
-  * Step inside external library functions (emuHelper restrictions)
+  * Step inside external library functions (EmulatorHelper restrictions)
   * Syscall emulation
   
  ## All plugin windows in one set
@@ -41,7 +43,7 @@ Contains hotkeys for setting start and end addresses of emulation, breakpoints a
 
  <img src="/images/Popup.png" width="700" height="200" />
  
- #### Register view
+ #### Registers view
 Change registers as you want. Setting as link register (green arrow) will help emulator let it know which register contains return address. Plugin knows how it goes via stack, lr register, AARCH64 and mips registers. If you have an exotic one, select link register and press the button.
  
  <img src="/images/Registers.gif"/>
@@ -75,6 +77,7 @@ Here plugin prints output information.
 # Before you start
 **A few important points to consider**:
 * Don't forget to analyze your program in Ghidra, emulator depends on it.
+* As already mentioned, set the link register if you have an exotic processor/vm.
 * If you have changed any bytes through the ByteViewer, the plugin won't restore them to their original values during resetting emulation state.
 * Before closing the project in Ghidra, you should press the "Reset" button and reset the state of the last emulation, if such an action was not performed. This is important, because at the moment of closing, transactions for repainting traced instructions in the listing will not be executed, as well as transactions for restoring program bytes after emulation. This can lead in the future not only to the contemplation of the "old yellow parrot", which is the least problem, but the bytes modified as a result of emulation will remain as such and will not return to their original values (unless the project is rolled back in Ghidra, of course).
 
@@ -89,7 +92,7 @@ Got some bugs while using the plugin or have ideas for improvements? Don't be sh
  
 ## Future work  
  
-EmuHelper restrictions don't allow using program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here. 
+EmulatorHelper restrictions don't allow using program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here. 
   
 
  

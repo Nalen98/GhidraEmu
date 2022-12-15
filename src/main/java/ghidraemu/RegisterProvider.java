@@ -71,7 +71,7 @@ public class RegisterProvider extends ComponentProvider {
         regList = new ArrayList <> ();
         programRegisters = program.getProgramContext().getRegisters();  
         
-        for (Register reg: programRegisters) {        	
+        for (Register reg: programRegisters) {
             if (!reg.isHidden()) {
                 if (reg.isProgramCounter()) {
                     PC = reg.getName();
