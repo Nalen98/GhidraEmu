@@ -75,6 +75,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
     private final boolean isConnected;
     private boolean disposed;   
     public static Address midStack;
+    public static String stackName;
 
     public ProgramByteViewerComponentProviderEmu(PluginTool tool, ByteViewerPluginEmu byteViewerPlugin,
             boolean isConnected) {
@@ -269,6 +270,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 
     public void setStack() {
         boolean hasStack = false;
+        stackName = "Stack";
         try {
             AddressFactory addrFactory = program.getAddressFactory();  
             long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff);	    	
@@ -277,27 +279,43 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
             if (program.getLanguage().getProcessor().toString().equalsIgnoreCase("V850")){
                 stackStart = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));										
             }
-            
+
             Memory memory = program.getMemory();    	
             for (MemoryBlock block : memory.getBlocks()) {
-                if (block.getName().equals("Stack")) {
+                String blockName = block.getName();                
+                if (blockName.toLowerCase().contains("stack")) {  
+                    if (!block.isInitialized()) {
+                    	int transactionID = -1;
+                        try {
+                        	transactionID = program.startTransaction("Init bytes of stack");
+                            memory.convertToInitialized(block, (byte) 0);                               
+                        } catch (Exception ex){
+                            ex.printStackTrace();
+                        } finally {       
+                            program.endTransaction(transactionID, true);
+                        } 
+                    }
+                    stackName = blockName;
                     hasStack = true;
                     break;
                 }
             }
-            if (!hasStack) {
+            if (!hasStack) {	
+            	int transactionID = -1;
                 try {
-                    int transactionID = program.startTransaction("Mapping");         			
-                    MemoryBlock newBlock = memory.createInitializedBlock("Stack", stackStart, 0x2000, (byte) 0,
-                        TaskMonitor.DUMMY, false);                    
+                	transactionID = program.startTransaction("Mapping");         			
+                    MemoryBlock newBlock = memory.createInitializedBlock(stackName, stackStart, 0x2000, (byte) 0,
+                        TaskMonitor.DUMMY, false);
                     newBlock.setPermissions(true, true, true);
-                    program.endTransaction(transactionID, true);
-                } catch (LockException | IllegalArgumentException | MemoryConflictException
-                        | AddressOverflowException | CancelledException e) {                    
+                } catch (Exception e) { 
                     e.printStackTrace();
-                }                            
+                } finally {       
+                    program.endTransaction(transactionID, true);
+                }           
             }
-        } catch (Exception ex) {}
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }  	
         
     @Override

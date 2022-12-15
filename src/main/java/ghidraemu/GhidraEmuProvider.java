@@ -32,6 +32,7 @@ import ghidra.app.plugin.core.function.editor.FunctionEditorModel;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.store.LockException;
+import ghidra.pcode.utils.AddressUtils;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
@@ -95,6 +96,7 @@ public class GhidraEmuProvider extends ComponentProvider {
     public ProgramLocation endLocation;
     public String message;
     public String processorName;
+    public String stackName;
     private ArrayList <ExternalFunction> implementedFuncsPtrs;
     private ArrayList <ExternalFunction> unimplementedFuncsPtrs;
     private ArrayList <ExternalFunction> computedCalls;
@@ -474,8 +476,16 @@ public class GhidraEmuProvider extends ComponentProvider {
             // get processor name
             processorName = program.getLanguage().getProcessor().toString();
             
-            stackStart = program.getMemory().getBlock("Stack").getStart();          
-            stackSize = (int)program.getMemory().getBlock("Stack").getSize();
+            for (MemoryBlock block : program.getMemory().getBlocks()) {
+            	String blockName = block.getName();
+            	if (blockName.toLowerCase().contains("stack")) {
+                    stackName = blockName;
+                    break;
+                }                
+            }
+            
+            stackStart = program.getMemory().getBlock(stackName).getStart();          
+            stackSize = (int)program.getMemory().getBlock(stackName).getSize();
             long stackPointerAsLong = stackStart.getOffset() + stackSize/2;
             if (processorName.equalsIgnoreCase("V850")){
                 stackPointerAsLong = 0xFFFFFFFF;					
@@ -578,62 +588,72 @@ public class GhidraEmuProvider extends ComponentProvider {
             if (start.getAddressSpace().getName().equalsIgnoreCase("ram")) { 
                 boolean isEnoughSpace = false;
                 while (!isEnoughSpace){
-                    try {
-                        if (!program.getMemory().getBlock("Stack").contains(start) && !origBytes.containsKey(start)){
+                	int transactionSB = -1;
+                	int transactionUM = -1;
+                    try {                    	
+                        if (!program.getMemory().getBlock(stackName).contains(start) && !origBytes.containsKey(start)){
                             byte [] beforeChange = new byte[len];
-                            int transactionID = program.startTransaction("SaveOrigBytes");                            
+                            transactionSB = program.startTransaction("SaveOrigBytes");                            
                             program.getMemory().getBytes(start, beforeChange);
-                            program.endTransaction(transactionID, true);
+                            program.endTransaction(transactionSB, true);
                             origBytes.put(start, beforeChange);
+                            transactionSB = 0;
                         }
 
-                        int transactionID = program.startTransaction("UpdateMem");
+                        transactionUM = program.startTransaction("UpdateMem");
                         program.getMemory().setBytes(start, emuHelper.readMemory(start, len));
-                        program.endTransaction(transactionID, true);
+                        program.endTransaction(transactionUM, true);
+                        transactionUM = 0;
                         isEnoughSpace = true;  
 
                         // update ram in gui (not stack)
-                        if (!program.getMemory().getBlock("Stack").contains(start) && 
+                        if (!program.getMemory().getBlock(stackName).contains(start) && 
                             program.getListing().getDataAt(start).isPointer()){
                                 addressesToUpdate.put(start, len);
                             if (!isRunning){
-                            // Update bytes if not running but stepping in the disassm listing
-                            // Only applicable to pointers because data bytes 
-                            // don't need to be updated (already)
-                            updatePtrUnstable(start);                            	
+                                // Update bytes if not running but stepping in the disassm listing
+                                // Only applicable to pointers because data bytes 
+                                // don't need to be updated (already)
+                                updatePtrUnstable(start);                            	
                             }           
-                        }
-                    } catch (ghidra.pcode.error.LowlevelError e ) {            
-                        e.printStackTrace();    
-                        return false;               
-                    } catch (ghidra.program.model.mem.MemoryAccessException e ) {  
+                        }                               
+                    } catch (ghidra.pcode.error.LowlevelError | ghidra.program.model.mem.MemoryAccessException e ) {  
                         e.printStackTrace();
+                        if (transactionSB != -1 && transactionSB != 0) {
+                    		program.endTransaction(transactionSB, true);
+                    	}
+                    	if (transactionUM != -1 && transactionUM != 0) {
+                    		program.endTransaction(transactionUM, true);
+                    	}
                         if (e.getMessage().contains("Unable to read bytes at ram")){
                         	// If the error has something to do with the fact that not enough stack is allocated, 
                         	// it is necessary to recognize and fix it. Otherwise, we are dealing with uninitialized 
                         	// memory and it must be corrected by the user himself.
                       
                         	String conflictAddressStr = e.getMessage().substring(e.getMessage().indexOf("ram:") + 4);
-                        	Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);
+                        	Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);   
                         	Address deadLine = stackStart.subtract(0x1000);
                         	int cmp1 = conflictAddress.compareTo(stackStart);
                         	int cmp2 = conflictAddress.compareTo(deadLine);
                         	if  (cmp1 <= 0 && cmp2 >= 0) {
                         		// set more space for stack
-                                MemoryBlock expandBlock = program.getMemory().getBlock("Stack");
+                                MemoryBlock expandBlock = program.getMemory().getBlock(stackName);
                                 Memory memory = program.getMemory();
                                 MemoryBlock newBlock;
+                                int transactionID = -1;
                                 try {
                                     stackSize = stackSize + 0x1000;                            
                                     stackStart = getAddressfromLong(stackStart.getOffset() - 0x1000);
-                                    newBlock = memory.createInitializedBlock("Stack", 
+                                    transactionID= program.startTransaction("Mapping"); 
+                                    newBlock = memory.createInitializedBlock(stackName, 
                                             stackStart, 0x1000, (byte) 0, TaskMonitor.DUMMY, false);
                                     memory.join(newBlock, expandBlock);
-                                } catch (MemoryBlockException | NotFoundException ex) {								
-                                    ex.printStackTrace();
-                                    return false;
-                                } catch (LockException | IllegalArgumentException | MemoryConflictException
-                                    | AddressOverflowException | CancelledException ex) {							
+                                    program.endTransaction(transactionID, true);
+                                    transactionID = 0;                                
+                                } catch (Exception ex) {		
+                                	if (transactionID != -1 && transactionID != 0) {
+                                		program.endTransaction(transactionID, true);
+                                	}
                                     ex.printStackTrace();
                                     return false;
                                 } 
@@ -900,14 +920,16 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
         //Stack zeroed
         if (stackPointer != null) {
+            int transactionID = -1;
             try {
-                int transactionID = program.startTransaction("UpdateStack");
-                program.getMemory().setBytes(stackStart, new byte[stackSize]);
-                program.endTransaction(transactionID, true);
+                transactionID = program.startTransaction("UpdateStack");
+                program.getMemory().setBytes(stackStart, new byte[stackSize]);                
                 GhidraEmuPlugin.stackProvider.contextChanged();
             } catch (Exception e) {                
                 e.printStackTrace();
-            }
+            }  finally {       
+                program.endTransaction(transactionID, true);
+            } 
         }
         //Zero fields
         if (GhidraEmuPopup.start_address != null) {
@@ -950,14 +972,16 @@ public class GhidraEmuProvider extends ComponentProvider {
         // in some cases and returns zeros (e.g., with pointers)
         for (Address startAddess : origBytes.keySet()) {
             byte [] originalBytesForSet = origBytes.get(startAddess);
+            int transactionID = -1;
             try {
-                int transactionID = program.startTransaction("RestoreMem");
-                program.getMemory().setBytes(startAddess, originalBytesForSet);
-                program.endTransaction(transactionID, true);                   
+                transactionID = program.startTransaction("RestoreMem");
+                program.getMemory().setBytes(startAddess, originalBytesForSet);                                   
                 updatePtrUnstable(startAddess);
             } catch (MemoryAccessException e) {			
                 e.printStackTrace();
-            }
+            } finally {       
+                program.endTransaction(transactionID, true);
+            } 
         }
 
         // As for the bytes changed by the users, we will assume that they theirself is 
@@ -970,17 +994,19 @@ public class GhidraEmuProvider extends ComponentProvider {
         /*
         for (FileBytes fileBytes : binBytes) {   
             for (Address startAddess : userBytes.keySet()) {
+                int transactionID = -1;
                 try {
                     int len = userBytes.get(startAddess);
                     byte[] origFileBytes = new byte[len];
                     fileBytes.getOriginalBytes(startAddess.getOffset() - program.getImageBase().getOffset(), origBytes, 0, len);   
                                         
-                    int transactionID = program.startTransaction("RestoreProgramBytesChnagedByUser");
-                    program.getMemory().setBytes(startAddess, origFileBytes);
-                    program.endTransaction(transactionID, true); 
+                    transactionID = program.startTransaction("RestoreProgramBytesChnagedByUser");
+                    program.getMemory().setBytes(startAddess, origFileBytes);                    
                 } catch (MemoryAccessException | IOException e) {			
                     e.printStackTrace();
-                }
+                } finally {       
+                    program.endTransaction(transactionID, true);
+                } 
             }
         } 
         userBytes.clear();
@@ -1038,16 +1064,18 @@ public class GhidraEmuProvider extends ComponentProvider {
     }
 
     public void updatePtrUnstable(Address address) {
+        int transactionID = -1;
         try {                            		
-            int transactionID = program.startTransaction("UpdatePtr"); 
+            transactionID = program.startTransaction("UpdatePtr"); 
             DataUtilities.createData(program, address, new ByteDataType(), program.getDefaultPointerSize(), false,
                     DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);    
             DataUtilities.createData(program, address, new PointerDataType(), program.getDefaultPointerSize(), false,
-                    DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);								
-            program.endTransaction(transactionID, true);  
+                    DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
         } catch (CodeUnitInsertionException e) {									
             e.printStackTrace();
-        }
+        } finally {       
+            program.endTransaction(transactionID, true);
+        }         
     }
 
     public void ipBack(boolean isRunning) {
@@ -1102,16 +1130,17 @@ public class GhidraEmuProvider extends ComponentProvider {
             }
             if (!hasHeap) {
                 //mmap heap
+            	int transactionID = -1;
                 try {
-                    int transactionID = program.startTransaction("Mapping Heap");
+                    transactionID = program.startTransaction("Mapping Heap");
                     MemoryBlock newBlock = program.getMemory().createInitializedBlock("Heap", heapAddr, MALLOC_REGION_SIZE, (byte) 0,
                         TaskMonitor.DUMMY, false);
-                    newBlock.setPermissions(true, true, true);
-                    program.endTransaction(transactionID, true);
-                } catch (LockException | IllegalArgumentException | MemoryConflictException |
-                    AddressOverflowException | CancelledException e) {
+                    newBlock.setPermissions(true, true, true);                   
+                } catch (Exception e) {
                     e.printStackTrace();
-                }
+                } finally {       
+                    program.endTransaction(transactionID, true);
+                }                
                 plugin.console.addMessage(originator, "Heap allocated at 0x70000000. If you need more space go to Memory Map.");
             }
             try {

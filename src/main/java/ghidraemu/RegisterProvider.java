@@ -48,7 +48,7 @@ public class RegisterProvider extends ComponentProvider {
     public static String returnReg;
 
     public RegisterProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
-        super(ghidraEmuPlugin.getTool(), "Register View", pluginName);
+        super(ghidraEmuPlugin.getTool(), "Registers View", pluginName);
         setProgram(program);
         setIcon(ResourceManager.loadImage("images/ico.png"));
         setWindowMenuGroup("GhidraEmu");
@@ -71,7 +71,7 @@ public class RegisterProvider extends ComponentProvider {
         regList = new ArrayList <> ();
         programRegisters = program.getProgramContext().getRegisters();
 
-        for (Register reg: programRegisters) {
+        for (Register reg: programRegisters) {        
             if (!reg.isHidden()) {
                 if (reg.isProgramCounter()) {
                     PC = reg.getName();

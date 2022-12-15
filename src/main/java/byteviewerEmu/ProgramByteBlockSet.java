@@ -280,7 +280,7 @@ class ProgramByteBlockSet implements ByteBlockSet {
 		Memory memory = program.getMemory();
 		memBlocks = program.getMemory().getBlocks();
 		MemoryBlock stackblock = null;
-		stackblock = program.getMemory().getBlock("Stack");		
+		stackblock = program.getMemory().getBlock(ProgramByteViewerComponentProviderEmu.stackName);			
 		if (stackblock == null) {
 			return;
 		}

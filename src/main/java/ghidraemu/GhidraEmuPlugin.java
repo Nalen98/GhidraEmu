@@ -61,10 +61,7 @@ public class GhidraEmuPlugin extends ProgramPlugin {
                 regprovider.setProgram(p);
                 provider.setProgram(p);  
                 popup.setProgram(p);   
-                bpprovider.setProgram(p);  
-                Address stackOffset = program.getMemory().getBlock("Stack").getStart();      
-                ProgramLocation stackLocation = new ProgramLocation(program, stackOffset);                  
-                stackProvider.goTo(program, stackLocation);
+                bpprovider.setProgram(p); 
             }
         }
     }
