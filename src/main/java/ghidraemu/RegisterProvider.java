@@ -69,15 +69,15 @@ public class RegisterProvider extends ComponentProvider {
             }
         };
         regList = new ArrayList <> ();
-        programRegisters = program.getProgramContext().getRegisters();
-
-        for (Register reg: programRegisters) {        
+        programRegisters = program.getProgramContext().getRegisters();  
+        
+        for (Register reg: programRegisters) {        	
             if (!reg.isHidden()) {
                 if (reg.isProgramCounter()) {
                     PC = reg.getName();
                     regList.add(0, reg.getName());
                     continue;
-                }
+                }              
                 regList.add(reg.getName());
             }
         }

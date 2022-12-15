@@ -31,8 +31,6 @@ import ghidra.app.emulator.EmulatorHelper;
 import ghidra.app.plugin.core.function.editor.FunctionEditorModel;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.PluginTool;
-import ghidra.framework.store.LockException;
-import ghidra.pcode.utils.AddressUtils;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
@@ -49,8 +47,6 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.mem.MemoryBlock;
-import ghidra.program.model.mem.MemoryBlockException;
-import ghidra.program.model.mem.MemoryConflictException;
 import ghidra.program.model.symbol.RefType;
 import ghidra.program.model.symbol.Reference;
 import ghidra.program.model.symbol.Symbol;
@@ -60,7 +56,6 @@ import ghidra.program.util.ProgramContextImpl;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.VarnodeContext;
 import ghidra.util.exception.CancelledException;
-import ghidra.util.exception.NotFoundException;
 import ghidra.util.task.ConsoleTaskMonitor;
 import ghidra.util.task.TaskMonitor;
 import resources.ResourceManager;
@@ -657,19 +652,17 @@ public class GhidraEmuProvider extends ComponentProvider {
                                     ex.printStackTrace();
                                     return false;
                                 } 
-                        	} else {
-                        		// uninitialized memory
-                        		String errMsg = e.getMessage();
-                        		if (isRunning) {
-                                    if (!sw.isCancelled()){
-                                        sw.publishWrap(errMsg);
-                                    }
-                                } else {
-                                    plugin.console.addMessage(originator, errMsg);
-                                }   
-                        		return false;
-                        	}      
-                        }            
+                            } else {
+                                // uninitialized memory
+                                handleError(isRunning, e);
+                                return false;
+                            }      
+                        } 
+                        else {
+                            // perhaps we've got the memory change conflict
+                            handleError(isRunning, e);
+                            return false;
+                        }
                     }
                 }               
             }
@@ -677,6 +670,17 @@ public class GhidraEmuProvider extends ComponentProvider {
         return true;
     }
 
+    public void handleError(boolean isRunning, Exception e) {
+        String errMsg = e.getMessage();
+        if (isRunning) {
+            if (!sw.isCancelled()){
+                sw.publishWrap(errMsg);
+            }
+        } else {
+            plugin.console.addMessage(originator, errMsg);
+        }   
+    }
+    
     public void setEmuStackBytes() {
         byte[] dest = new byte[stackSize];
         try {
