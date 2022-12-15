@@ -615,7 +615,10 @@ public class GhidraEmuProvider extends ComponentProvider {
                       
                         	String conflictAddressStr = e.getMessage().substring(e.getMessage().indexOf("ram:") + 4);
                         	Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);
-                        	if (stackStart.getOffset() - conflictAddress.getOffset() < 0x1000) {
+                        	Address deadLine = stackStart.subtract(0x1000);
+                        	int cmp1 = conflictAddress.compareTo(stackStart);
+                        	int cmp2 = conflictAddress.compareTo(deadLine);
+                        	if  (cmp1 <= 0 && cmp2 >= 0) {
                         		// set more space for stack
                                 MemoryBlock expandBlock = program.getMemory().getBlock("Stack");
                                 Memory memory = program.getMemory();
