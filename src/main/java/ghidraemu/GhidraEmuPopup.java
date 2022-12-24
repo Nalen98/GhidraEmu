@@ -153,17 +153,36 @@ public class GhidraEmuPopup extends ListingContextAction {
                 }
             }
         };
-        unsetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_J, 0));
+        unsetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_T, 0));
         unsetBreak.setPopupMenuData(new MenuData(new String[] {
             menuName,
             "Delete breakpoint"
         }, null, groupName));
         tool.addAction(unsetBreak);
+        
+        // new feature - jump over the instruction
+        ListingContextAction jumpOver = new ListingContextAction("Jump over the instruction", getName()) {
+            @Override
+            protected void actionPerformed(ListingActionContext context) {
+                Address badPlace = GhidraEmuProvider.emuHelper.getExecutionAddress();
+                unsetColor(badPlace);
+                GhidraEmuProvider.setNextPC();
+                Address newPC = GhidraEmuProvider.emuHelper.getExecutionAddress();
+                setColor(newPC, Color.getHSBColor(247, 224, 98));
+                GhidraEmuProvider.traced.add(newPC);
+            }
+        };
+        jumpOver.setKeyBindingData(new KeyBindingData(KeyEvent.VK_J, 0));
+        jumpOver.setPopupMenuData(new MenuData(new String[] {
+            menuName,
+            "Jump over"
+        }, null, groupName));
+        tool.addAction(jumpOver);
     }
 
     public static void unsetColor(Address address) {
-    	int transactionID = -1;
-    	try {
+        int transactionID = -1;
+        try {
             ColorizingService service = tool.getService(ColorizingService.class);
             transactionID = program.startTransaction("UnSetColor");
             service.clearBackgroundColor(address, address);
@@ -175,8 +194,8 @@ public class GhidraEmuPopup extends ListingContextAction {
     }
 
     public static void setColor(Address address, Color color) {
-    	int transactionID = -1;
-    	try {
+        int transactionID = -1;
+        try {
             ColorizingService service = tool.getService(ColorizingService.class);
             transactionID = program.startTransaction("SetColor");
             service.setBackgroundColor(address, address, color);            

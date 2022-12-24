@@ -285,9 +285,9 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
                 String blockName = block.getName();                
                 if (blockName.toLowerCase().contains("stack")) {  
                     if (!block.isInitialized()) {
-                    	int transactionID = -1;
+                        int transactionID = -1;
                         try {
-                        	transactionID = program.startTransaction("Init bytes of stack");
+                            transactionID = program.startTransaction("Init_stack_bytes");
                             memory.convertToInitialized(block, (byte) 0);                               
                         } catch (Exception ex){
                             ex.printStackTrace();

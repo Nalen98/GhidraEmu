@@ -31,6 +31,8 @@ import ghidra.app.emulator.EmulatorHelper;
 import ghidra.app.plugin.core.function.editor.FunctionEditorModel;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.PluginTool;
+import ghidra.pcode.emulate.EmulateExecutionState;
+import ghidra.pcode.memstate.MemoryFaultHandler;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
@@ -73,13 +75,13 @@ public class GhidraEmuProvider extends ComponentProvider {
     public static HashMap<Address, byte[]> origBytes;
     public static JTextField startTF;
     public static JTextField stopTF;       
-    public static Program program;   
+    public static Program program;  
+    public static ArrayList <Address> traced; 
     public PluginTool tool;
     public GhidraEmuPlugin plugin;
     public Border classicBorder;    
     public Address stopEmu;
-    public ConsoleTaskMonitor monitor;
-    public ArrayList <Address> traced;    
+    public ConsoleTaskMonitor monitor;        
     public MallocManager mallocMgr;    
     public VarnodeContext context;
     public ListingPanel lpanel;
@@ -91,7 +93,9 @@ public class GhidraEmuProvider extends ComponentProvider {
     public ProgramLocation endLocation;
     public String message;
     public String processorName;
-    public String stackName;
+    public String stackName;    
+    public boolean isStateClear;
+    public boolean isDirty;
     private ArrayList <ExternalFunction> implementedFuncsPtrs;
     private ArrayList <ExternalFunction> unimplementedFuncsPtrs;
     private ArrayList <ExternalFunction> computedCalls;
@@ -99,6 +103,25 @@ public class GhidraEmuProvider extends ComponentProvider {
     private boolean hasHeap;
     private JPanel panel;
 
+    public GhidraEmuProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
+        super(ghidraEmuPlugin.getTool(), pluginName, pluginName);
+        this.tool = ghidraEmuPlugin.getTool();
+        this.plugin = ghidraEmuPlugin;
+        setIcon(ResourceManager.loadImage("images/ico.png"));
+        setProgram(program);
+        setWindowMenuGroup("GhidraEmu");
+        traced = new ArrayList <Address> ();
+        breaks = new ArrayList <Address> ();
+        addressesToUpdate = new HashMap<Address, Integer>();
+        userBytes = new HashMap<Address, Integer>();
+        origBytes = new HashMap<Address, byte[]>();        
+        knownFuncs = new ArrayList <String> (Arrays.asList("malloc", "free", "puts", "strlen", "exit"));
+        lpanel = plugin.codeViewer.getListingPanel();    	
+        emuHelper = null;
+        isStateClear = true;
+        isDirty = false;
+    }
+    
     public class ExternalFunction {
         public Address funcPtr;
         public Function function;
@@ -145,13 +168,16 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     
         @Override
-        protected void done() {        	                              
+        protected void done() {    
+            if (isDirty) {
+                return;
+            }
             if (endLocation != null){                            
-            	try {
-	                lpanel.scrollTo(endLocation);
-	                GhidraEmuPopup.setColor(endLocation.getAddress(), Color.getHSBColor(247, 224, 98)); 
-            	}
-            	catch (Exception ex) {};
+                try {
+                    lpanel.scrollTo(endLocation);
+                    GhidraEmuPopup.setColor(endLocation.getAddress(), Color.getHSBColor(247, 224, 98)); 
+                }
+                catch (Exception ex) {};
             }    
             if (addressesToUpdate != null){
                 for (Address start : addressesToUpdate.keySet()){
@@ -177,23 +203,6 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     }
     
-    public GhidraEmuProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
-        super(ghidraEmuPlugin.getTool(), pluginName, pluginName);
-        this.tool = ghidraEmuPlugin.getTool();
-        this.plugin = ghidraEmuPlugin;
-        setIcon(ResourceManager.loadImage("images/ico.png"));
-        setProgram(program);
-        setWindowMenuGroup("GhidraEmu");
-        traced = new ArrayList <Address> ();
-        breaks = new ArrayList <Address> ();
-        addressesToUpdate = new HashMap<Address, Integer>();
-        userBytes = new HashMap<Address, Integer>();
-        origBytes = new HashMap<Address, byte[]>();        
-        knownFuncs = new ArrayList <String> (Arrays.asList("malloc", "free", "puts", "strlen", "exit"));
-        lpanel = plugin.codeViewer.getListingPanel();    	
-        emuHelper = null;
-    }
-
     private void buildPanel() {
         panel = new JPanel();
         panel.setMaximumSize(new Dimension(440, 200));
@@ -431,8 +440,39 @@ public class GhidraEmuProvider extends ComponentProvider {
         return true;
     }
 
+    public void interrupt(Address pc, String errMsg) {
+        Boolean isRunning = null;
+        if (sw == null ) {
+            isRunning = false;
+        } else {
+            if (!sw.isDone() && !sw.isCancelled()) {                
+                isRunning = true;
+            } else {
+                isRunning = false;
+            }
+        }
     
-    public boolean initEmulation() {
+        if (isRunning) {
+            if (!sw.isCancelled()){
+                sw.publishWrap(errMsg);
+            }
+        } else {
+            plugin.console.addMessage(originator, errMsg);
+        } 
+        // Update the emulation context before exit
+        readEmuRegisters();
+        readMemFromEmu(isRunning);
+        // Exit
+        message = sthWrong;
+        stopEmulationLight(pc, isRunning);  
+    }
+    
+    public boolean initEmulation() {      
+        if (!isStateClear){
+            // It's a dirty start, user didn't press "Reset" before start
+            JOptionPane.showMessageDialog(null, "Reset the previous emulation state!");
+            return false;
+        } 
         // get start address
         if (startTF.getText().equals("")) {
             JOptionPane.showMessageDialog(null, "Set start address!");
@@ -447,23 +487,67 @@ public class GhidraEmuProvider extends ComponentProvider {
             return false;
         }
         RegisterProvider.setRegister(RegisterProvider.PC, program.getAddressFactory().getAddress(startTF.getText()));
+        
+        MemoryFaultHandler memFaultHandler = new MemoryFaultHandler() {
+            @Override
+            public boolean uninitializedRead(Address address, int size, byte[] buf, int bufOffset) {
+                if (emuHelper.getEmulateExecutionState() == EmulateExecutionState.INSTRUCTION_DECODE) {
+                    return false;
+                }
+                
+                Address pc = emuHelper.getExecutionAddress();               
+                Register reg = program.getRegister(address, size);
+                if (reg != null) {
+                    String badRegErr = "Uninitialized register READ at " + pc + ": " + reg;
+                    interrupt(pc, badRegErr);
+                    return true;
+                }
+                String badMemErr ="Uninitialized memory READ at pc = " + pc + " to address = " + address.toString(true) + " with size = " + size;
+                interrupt(pc, badMemErr);
+                return true;
+            }
+
+            @Override
+            public boolean unknownAddress(Address address, boolean write) {
+                Address pc = emuHelper.getExecutionAddress();
+                String access = write ? "written" : "read";
+                String errMsg = "Unknown address " + access + " at " + pc + ": " + address;
+                interrupt(pc, errMsg);
+                return false;
+            }
+        };
+        
         try {
             emuHelper = new EmulatorHelper(program);
+            emuHelper.setMemoryFaultHandler(memFaultHandler);
             emuHelper.enableMemoryWriteTracking(true);
             monitor = new ConsoleTaskMonitor() {
                 @Override
                 public void checkCanceled() throws CancelledException {
-                    Address address = emuHelper.getExecutionAddress();                    
+                    Address address = emuHelper.getExecutionAddress(); 
+                    Instruction currentInstruction = program.getListing().getInstructionAt(address);
+                    Address execBeforeJsr = null;
+                    // lets paint the next instruction after jsr (for SuperH)
+                    if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
+                        execBeforeJsr = currentInstruction.getNext().getAddress();                                                
+                    }
+        
                     if (sw == null){
                         // run never started
                         if (!traced.contains(address)){
                             traced.add(address);
+                            if (execBeforeJsr != null && !traced.contains(execBeforeJsr)){
+                                traced.add(execBeforeJsr);
+                            }
                         }
                     } else {
                         if (!sw.isCancelled() && !sw.isDone()){
                             // just running 
                             if (!traced.contains(address)){
-                                traced.add(address);
+                                traced.add(address);                                
+                                if (execBeforeJsr != null && !traced.contains(execBeforeJsr)){
+                                    traced.add(execBeforeJsr);                                    
+                                }
                                 sw.publishWrap(null);
                             }
                         }                       
@@ -478,8 +562,8 @@ public class GhidraEmuProvider extends ComponentProvider {
             processorName = program.getLanguage().getProcessor().toString();
             
             for (MemoryBlock block : program.getMemory().getBlocks()) {
-            	String blockName = block.getName();
-            	if (blockName.toLowerCase().contains("stack")) {
+                String blockName = block.getName();
+                if (blockName.toLowerCase().contains("stack")) {
                     stackName = blockName;
                     break;
                 }                
@@ -489,13 +573,13 @@ public class GhidraEmuProvider extends ComponentProvider {
             stackSize = (int)program.getMemory().getBlock(stackName).getSize();
             long stackPointerAsLong = stackStart.getOffset() + stackSize/2;
             if (processorName.equalsIgnoreCase("V850")){
-                stackPointerAsLong = 0xFFFFFFFF;					
+                stackPointerAsLong = 0xFFFFFFFF;
             }
             stackPointer = getAddressfromLong(stackPointerAsLong);            
             
             //save FileBytes to restore the original bytes of the binary changed by user (experimental)
             binBytes = program.getMemory().getAllFileBytes();             
-           
+        
             //set SP register for emulator         
             emuHelper.writeRegister(emuHelper.getStackPointerRegister(), stackPointerAsLong);
             
@@ -536,8 +620,10 @@ public class GhidraEmuProvider extends ComponentProvider {
         boolean isFirstLaunch = false;     
         if (emuHelper == null) {
             if (!initEmulation()){
+                isDirty = true;
                 return;
             }
+            isDirty = false;
             isFirstLaunch = true;
         }   
         for (Address bp: breaks) {
@@ -589,90 +675,110 @@ public class GhidraEmuProvider extends ComponentProvider {
             if (start.getAddressSpace().getName().equalsIgnoreCase("ram")) { 
                 boolean isEnoughSpace = false;
                 while (!isEnoughSpace){
-                	int transactionSB = -1;
-                	int transactionUM = -1;
-                    try {                    	
-                        if (!program.getMemory().getBlock(stackName).contains(start) && !origBytes.containsKey(start)){
-                            byte [] beforeChange = new byte[len];
-                            transactionSB = program.startTransaction("SaveOrigBytes");                            
+                    if (!program.getMemory().getBlock(stackName).contains(start) && !origBytes.containsKey(start)){                    	
+                        byte [] beforeChange = new byte[len];
+                        int transactionSB = program.startTransaction("SaveOrigBytes");                            
+                        try {
                             program.getMemory().getBytes(start, beforeChange);
-                            program.endTransaction(transactionSB, true);
-                            origBytes.put(start, beforeChange);
-                            transactionSB = 0;
-                        }
+                            origBytes.put(start, beforeChange); 
+                            isEnoughSpace = true;
+                        } catch (MemoryAccessException e) {								 
+                            e.printStackTrace();
 
-                        transactionUM = program.startTransaction("UpdateMem");
-                        program.getMemory().setBytes(start, emuHelper.readMemory(start, len));
-                        program.endTransaction(transactionUM, true);
-                        transactionUM = 0;
-                        isEnoughSpace = true;  
-
-                        // update ram in gui (not stack)
-                        if (!program.getMemory().getBlock(stackName).contains(start) && 
-                            program.getListing().getDataAt(start).isPointer()){
-                                addressesToUpdate.put(start, len);
-                            if (!isRunning){
-                                // Update bytes if not running but stepping in the disassm listing
-                                // Only applicable to pointers because data bytes 
-                                // don't need to be updated (already)
-                                updatePtrUnstable(start);                            	
-                            }           
-                        }                               
-                    } catch (ghidra.pcode.error.LowlevelError | ghidra.program.model.mem.MemoryAccessException e ) {  
-                        e.printStackTrace();
-                        if (transactionSB != -1 && transactionSB != 0) {
-                    		program.endTransaction(transactionSB, true);
-                    	}
-                    	if (transactionUM != -1 && transactionUM != 0) {
-                    		program.endTransaction(transactionUM, true);
-                    	}
-                        if (e.getMessage().contains("Unable to read bytes at ram")){
-                        	// If the error has something to do with the fact that not enough stack is allocated, 
-                        	// it is necessary to recognize and fix it. Otherwise, we are dealing with uninitialized 
-                        	// memory and it must be corrected by the user himself.
-                      
-                        	String conflictAddressStr = e.getMessage().substring(e.getMessage().indexOf("ram:") + 4);
-                        	Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);   
-                        	Address deadLine = stackStart.subtract(0x1000);
-                        	int cmp1 = conflictAddress.compareTo(stackStart);
-                        	int cmp2 = conflictAddress.compareTo(deadLine);
-                        	if  (cmp1 <= 0 && cmp2 >= 0) {
-                        		// set more space for stack
-                                MemoryBlock expandBlock = program.getMemory().getBlock(stackName);
-                                Memory memory = program.getMemory();
-                                MemoryBlock newBlock;
-                                int transactionID = -1;
-                                try {
-                                    stackSize = stackSize + 0x1000;                            
-                                    stackStart = getAddressfromLong(stackStart.getOffset() - 0x1000);
-                                    transactionID= program.startTransaction("Mapping"); 
-                                    newBlock = memory.createInitializedBlock(stackName, 
+                            // Check - is it stack just wants to expand its ranges or we're dealing with uninitialized memory							
+                            if (e.getMessage().contains("Unable to read bytes at ram")){
+                                
+                                // Check if not enough stack is allocated     
+                                String conflictAddressStr = e.getMessage().substring(e.getMessage().indexOf("ram:") + 4);
+                                Address conflictAddress = program.getAddressFactory().getAddress(conflictAddressStr);   
+                                Address deadLine = stackStart.subtract(0x1000);
+                                int cmp1 = conflictAddress.compareTo(stackStart);
+                                int cmp2 = conflictAddress.compareTo(deadLine);
+                                if  (cmp1 <= 0 && cmp2 >= 0) {
+                                    // set more space for stack
+                                    MemoryBlock expandBlock = program.getMemory().getBlock(stackName);
+                                    Memory memory = program.getMemory();
+                                    MemoryBlock newBlock;		      
+                                    int transactionID = program.startTransaction("MappingStack"); 
+                                    try {
+                                        stackSize = stackSize + 0x1000;                            
+                                        stackStart = getAddressfromLong(stackStart.getOffset() - 0x1000);		                                    
+                                        newBlock = memory.createInitializedBlock(stackName, 
                                             stackStart, 0x1000, (byte) 0, TaskMonitor.DUMMY, false);
-                                    memory.join(newBlock, expandBlock);
-                                    program.endTransaction(transactionID, true);
-                                    transactionID = 0;                                
-                                } catch (Exception ex) {		
-                                	if (transactionID != -1 && transactionID != 0) {
-                                		program.endTransaction(transactionID, true);
-                                	}
-                                    ex.printStackTrace();
-                                    return false;
-                                } 
+                                        memory.join(newBlock, expandBlock);	        
+                                    } catch (Exception ex) {	
+                                        ex.printStackTrace();
+                                        handleError(isRunning, ex);	
+                                        return false;	                                   
+                                    }  finally {
+                                        program.endTransaction(transactionID, true);			                                    
+                                    }
+                                } else {
+                                    // Uninitialized memory access
+                                    // Check that addresses are inside the program space
+                                    // The plugin will not create new program blocks (if it's not a stack)
+                                    boolean isInSpace = false;                                   
+                                    for (MemoryBlock block : program.getMemory().getBlocks()){
+                                        if (block.contains(start)) {                                    		
+                                            isInSpace = true;
+                                            // you can bet it's ".bss"
+                                            if (!block.isInitialized()) {
+                                                int transactionID = -1;
+                                                try {
+                                                    transactionID = program.startTransaction("Init_bytes");
+                                                    program.getMemory().convertToInitialized(block, (byte) 0);                               
+                                                } catch (Exception ex){
+                                                    ex.printStackTrace();
+                                                } finally {       
+                                                    program.endTransaction(transactionID, true);
+                                                } 
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    if (!isInSpace){
+                                        handleError(isRunning, e);
+                                        return false;
+                                    }
+                                }      
                             } else {
-                                // uninitialized memory
+                                // perhaps we've got the memory change conflict
                                 handleError(isRunning, e);
                                 return false;
-                            }      
-                        } 
-                        else {
-                            // perhaps we've got the memory change conflict
-                            handleError(isRunning, e);
-                            return false;
+                            }
+                        } finally {
+                            program.endTransaction(transactionSB, true);
                         }
+                    } else {
+                        isEnoughSpace = true;
                     }
-                }               
+                }
+                // Get bytes from emulator and write them to ghidra program memory
+                int transactionUM = program.startTransaction("UpdateMem");
+                byte [] bytesToWrite = emuHelper.readMemory(start, len);
+                try {
+                    program.getMemory().setBytes(start, bytesToWrite);                        
+                } catch (MemoryAccessException e1) {							
+                    e1.printStackTrace();
+                    handleError(isRunning, e1);
+                    return false;
+                } finally {
+                    program.endTransaction(transactionUM, true);                
+                } 
+
+                // update ram in gui (not stack)
+                if (!program.getMemory().getBlock(stackName).contains(start) && 
+                    program.getListing().getDataAt(start).isPointer()){
+                        addressesToUpdate.put(start, len);
+                    if (!isRunning){
+                        // Update bytes if not running but stepping in the disassm listing
+                        // Only applicable to pointers because data bytes 
+                        // don't need to be updated (already)
+                        updatePtrUnstable(start);                            	
+                    }           
+                }
             }
-        }    
+        }
         return true;
     }
 
@@ -707,7 +813,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
     }
 
-    public static void setEmuMemory() {      
+    public void setEmuMemory() {      
         try {
             for (var line: GhidraEmuPopup.bytesToPatch) {
                 emuHelper.writeMemory(line.start, line.bytes);
@@ -724,6 +830,11 @@ public class GhidraEmuProvider extends ComponentProvider {
             resetState();
             return;
         }
+        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
+            Address execBeforeJsr = currentInstruction.getNext().getAddress();
+            traced.add(execBeforeJsr);
+            GhidraEmuPopup.setColor(execBeforeJsr, Color.getHSBColor(247, 224, 98));
+        }
         boolean success = false;
         try {
             success = emuHelper.step(monitor);
@@ -731,7 +842,12 @@ public class GhidraEmuProvider extends ComponentProvider {
             JOptionPane.showMessageDialog(null, e.getStackTrace());
             resetState();
             return;
+        }    
+        // Perhaps emulator faced with uninitialized memory during stepping
+        if (emuHelper == null) {            
+            return;
         }        
+        
         Address executionAddress = emuHelper.getExecutionAddress();
         readEmuRegisters();
         if (!readMemFromEmu(false)){
@@ -739,7 +855,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             stopEmulationLight(executionAddress, false);
             return;
         }    
-
+        
         if (!success) {
             message = emuHelper.getLastError();              
             stopEmulationLight(executionAddress, false);
@@ -780,7 +896,11 @@ public class GhidraEmuProvider extends ComponentProvider {
             resetState();
             return;
         }
-
+        // Perhaps emulator faced with uninitialized memory during running
+        if (emuHelper == null) {            
+            return;
+        }  
+        
         Address executionAddress = emuHelper.getExecutionAddress();
         readEmuRegisters();
         if (!readMemFromEmu(true)){
@@ -833,8 +953,8 @@ public class GhidraEmuProvider extends ComponentProvider {
             if (addr.equals(func.funcPtr)) {
             if (func.function.getName().equals("exit")){ 
                 message = successMsg;
-                    stopEmulationLight(addr, isRunning);                   
-                    return false;
+                stopEmulationLight(addr, isRunning);                   
+                return false;
             }             
                 emulateKnownFunc(func, isRunning);
                 ipBack(isRunning);
@@ -875,16 +995,14 @@ public class GhidraEmuProvider extends ComponentProvider {
                         } else {
                             plugin.console.addMessage(originator, msg);
                         }
-                        emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
-                        RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
+                        setNextPC();
                         return true;
                     }
                 }
                 for (ExternalFunction Implfunc: implementedFuncsPtrs) {
                     if (Implfunc.function.equals(func.function)) {
                         emulateKnownFunc(func, isRunning);
-                        emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
-                        RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
+                        setNextPC();
                         return true;
                     }
                 }
@@ -899,26 +1017,32 @@ public class GhidraEmuProvider extends ComponentProvider {
         return false;
     }
 
+    public static void setNextPC(){    	
+        emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
+        RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
+    }
+    
     public void stopEmulationLight(Address executionAddress, boolean isRunning){  
-    	if (emuHelper != null) {
-    		emuHelper.dispose();
-    		emuHelper = null;
-    	}
+        if (emuHelper != null) {
+            emuHelper.dispose();
+            emuHelper = null;
+        }
         
-        if (executionAddress!=null) {
+        if (executionAddress != null) {
             endLocation = new ProgramLocation(program, executionAddress);
         }
         else {
-            endLocation = new ProgramLocation(program, traced.get(traced.size()-2));
+            endLocation = new ProgramLocation(program, traced.get(traced.size()-1));
         }
         if (!isRunning) {
-        	try {
+            try {
                 GhidraEmuPopup.setColor(endLocation.getAddress(), Color.orange); 
                 lpanel.scrollTo(endLocation);
                 JOptionPane.showMessageDialog(null, message);    
-        	}
-        	catch (Exception ex) {};
-        }
+            }
+            catch (Exception ex) {};
+        }        
+        isStateClear = false;
     }
 
     public void resetState() {  
@@ -985,13 +1109,15 @@ public class GhidraEmuProvider extends ComponentProvider {
             int transactionID = -1;
             try {
                 transactionID = program.startTransaction("RestoreMem");
-                program.getMemory().setBytes(startAddess, originalBytesForSet);                                   
-                updatePtrUnstable(startAddess);
+                program.getMemory().setBytes(startAddess, originalBytesForSet);
             } catch (MemoryAccessException e) {			
                 e.printStackTrace();
             } finally {       
                 program.endTransaction(transactionID, true);
-            } 
+                if (program.getListing().getDataAt(startAddess).isPointer()){
+                    updatePtrUnstable(startAddess);
+                }
+            }
         }
 
         // As for the bytes changed by the users, we will assume that they theirself is 
@@ -1025,7 +1151,9 @@ public class GhidraEmuProvider extends ComponentProvider {
         // bytes restored, can clear
         addressesToUpdate.clear();
         origBytes.clear();
-        sw = null;
+        sw = null;    
+        isStateClear = true;   
+        panel.updateUI();
     }
     
     public void getExternalAddresses() {
@@ -1081,7 +1209,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                     DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);    
             DataUtilities.createData(program, address, new PointerDataType(), program.getDefaultPointerSize(), false,
                     DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
-        } catch (CodeUnitInsertionException e) {									
+        } catch (CodeUnitInsertionException e) {				
             e.printStackTrace();
         } finally {       
             program.endTransaction(transactionID, true);
@@ -1120,9 +1248,9 @@ public class GhidraEmuProvider extends ComponentProvider {
                 }   
                 else {
                     return;
-                }         	
+                }
             }            
-        } catch (Exception e) {            
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -1140,7 +1268,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             }
             if (!hasHeap) {
                 //mmap heap
-            	int transactionID = -1;
+                int transactionID = -1;
                 try {
                     transactionID = program.startTransaction("Mapping Heap");
                     MemoryBlock newBlock = program.getMemory().createInitializedBlock("Heap", heapAddr, MALLOC_REGION_SIZE, (byte) 0,

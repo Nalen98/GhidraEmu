@@ -41,7 +41,7 @@ Contains all plugin's windows - Stack view, Registers, Breakpoints view, and Mai
 ### Popup window
 Contains hotkeys for setting start and end addresses of emulation, breakpoints and applying changed bytes to emulator.
 
- <img src="/images/Popup.png" width="700" height="200" />
+ <img src="/images/PopupMenu.png" width="400" height="370" />
  
  #### Registers view
 Change registers as you want. Setting as link register (green arrow) will help emulator let it know which register contains return address. Plugin knows how it goes via stack, lr register, AARCH64 and mips registers. If you have an exotic one, select link register and press the button.
@@ -64,6 +64,7 @@ If any bytes change during the emulation, you will see them in the classic ByteV
  <img src="/images/update_bytes.gif"/>
 
 #### Apply patched bytes
+
 If you changed something, let emulator know about changed bytes (stack updates automatically, no need for it). After changing, select them (will be green), and press this option (or hotkey "M"). 
  
  ![GhidraEmu apply patched bytes](./images/ApplyPatchedBytes.png) 
@@ -72,6 +73,16 @@ If you changed something, let emulator know about changed bytes (stack updates a
 Here plugin prints output information.
  
   ![GhidraEmu console](./images/Console.png)
+
+### New feature - Jump Over
+
+Jump over feature allows you to jump ahead one instruction if you don't want to emulate the current one for some reason. Since the emulation process will be aborted if an attempt to read uninitialized memory is detected, this feature allows you to bypass it, so nice. Look at an example. Here's one of the first instructions in many x86_64 programs, canary stack saving:
+
+`MOV RAX, qword ptr FS:[0x28]`
+
+We'll just try to cheat a little and jump over it by increasing the PC value. To do this, stop at the instruction you don't want to emulate, click anywhere in the space of Ghidra disassm listing to have focus on it and press `J` hotkey. Otherwise, stepping further, we would get an uninitialized memory read error.
+
+![Jump Over](./images/JumpOver.gif)
 
  
 # Before you start
