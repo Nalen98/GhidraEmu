@@ -164,7 +164,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                     GhidraEmuPopup.setColor(addr, Color.getHSBColor(247, 224, 98));
                 }               
             }   
-            painted.addAll(toPaint);        	         
+            painted.addAll(toPaint);
+            readEmuRegisters();     	         
         }
     
         @Override
