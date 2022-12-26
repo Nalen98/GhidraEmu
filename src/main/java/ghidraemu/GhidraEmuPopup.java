@@ -9,6 +9,8 @@ import docking.action.KeyBindingData;
 import docking.action.MenuData;
 import ghidra.app.context.ListingActionContext;
 import ghidra.app.context.ListingContextAction;
+import ghidra.app.context.NavigatableActionContext;
+import ghidra.app.context.NavigatableContextAction;
 import ghidra.app.plugin.core.colorizer.ColorizingService;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.program.model.address.Address;
@@ -161,9 +163,9 @@ public class GhidraEmuPopup extends ListingContextAction {
         tool.addAction(unsetBreak);
         
         // new feature - jump over the instruction
-        ListingContextAction jumpOver = new ListingContextAction("Jump over the instruction", getName()) {
+        NavigatableContextAction jumpOver = new NavigatableContextAction("Jump over the instruction", getName()) {
             @Override
-            protected void actionPerformed(ListingActionContext context) {
+            protected void actionPerformed(NavigatableActionContext context) {
                 Address badPlace = GhidraEmuProvider.emuHelper.getExecutionAddress();
                 unsetColor(badPlace);
                 GhidraEmuProvider.setNextPC();

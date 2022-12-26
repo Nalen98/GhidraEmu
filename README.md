@@ -80,7 +80,7 @@ Jump over feature allows you to jump ahead one instruction if you don't want to 
 
 `MOV RAX, qword ptr FS:[0x28]`
 
-We'll just try to cheat a little and jump over it by increasing the PC value. To do this, stop at the instruction you don't want to emulate, click anywhere in the space of Ghidra disassm listing to have focus on it and press `J` hotkey. Otherwise, stepping further, we would get an uninitialized memory read error.
+We'll just try to cheat a little and jump over it by increasing the PC value. To do this, stop at the instruction you don't want to emulate and press `J` hotkey. Otherwise, stepping further, we would get an uninitialized memory read error.
 
 ![Jump Over](./images/JumpOver.gif)
 
