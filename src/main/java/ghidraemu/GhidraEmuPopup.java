@@ -18,9 +18,10 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryAccessException;
 
 public class GhidraEmuPopup extends ListingContextAction {
+	public GhidraEmuPlugin ghidraEmuPlugin;
     public final String menuName = "GhidraEmu";
     public final String groupName = "GhidraEmu";
-    public static PluginTool tool;
+    public static PluginTool tool;    
     public static Program program;
     public static Address start_address = null;
     public static Address stop_address = null;
@@ -31,6 +32,7 @@ public class GhidraEmuPopup extends ListingContextAction {
         setProgram(program);
         tool = plugin.getTool();
         setupActions();
+        ghidraEmuPlugin = plugin;
     }
 
     public void setProgram(Program p) {
@@ -153,6 +155,9 @@ public class GhidraEmuPopup extends ListingContextAction {
                         BreakpointProvider.breakModel.removeRow(i);
                     }
                 }
+                if (GhidraEmuProvider.emuHelper != null){
+                    GhidraEmuProvider.emuHelper.clearBreakpoint(address);
+                }
             }
         };
         unsetBreak.setKeyBindingData(new KeyBindingData(KeyEvent.VK_T, 0));
@@ -166,12 +171,9 @@ public class GhidraEmuPopup extends ListingContextAction {
         NavigatableContextAction jumpOver = new NavigatableContextAction("Jump over the instruction", getName()) {
             @Override
             protected void actionPerformed(NavigatableActionContext context) {
-                Address badPlace = GhidraEmuProvider.emuHelper.getExecutionAddress();
-                unsetColor(badPlace);
-                GhidraEmuProvider.setNextPC();
-                Address newPC = GhidraEmuProvider.emuHelper.getExecutionAddress();
-                setColor(newPC, Color.getHSBColor(247, 224, 98));
-                GhidraEmuProvider.traced.add(newPC);
+                if (GhidraEmuProvider.emuHelper != null && ghidraEmuPlugin != null) {
+                	ghidraEmuPlugin.provider.jumpOver();
+                }
             }
         };
         jumpOver.setKeyBindingData(new KeyBindingData(KeyEvent.VK_J, 0));
@@ -180,6 +182,22 @@ public class GhidraEmuPopup extends ListingContextAction {
             "Jump over"
         }, null, groupName));
         tool.addAction(jumpOver);
+
+        // new feature - step over the subroutine
+        NavigatableContextAction stepOver = new NavigatableContextAction("Step over the subroutine", getName()) {
+            @Override
+            protected void actionPerformed(NavigatableActionContext context) {   
+                if (GhidraEmuProvider.emuHelper != null && ghidraEmuPlugin != null) {             
+                	ghidraEmuPlugin.provider.stepOver();
+                }
+            }
+        };
+        stepOver.setKeyBindingData(new KeyBindingData(KeyEvent.VK_F6, 0));
+        stepOver.setPopupMenuData(new MenuData(new String[] {
+            menuName,
+            "Step over"
+        }, null, groupName));
+        tool.addAction(stepOver);
     }
 
     public static void unsetColor(Address address) {

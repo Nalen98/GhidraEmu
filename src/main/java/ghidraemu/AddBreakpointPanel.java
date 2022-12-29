@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.math.BigInteger;
 import java.awt.event.ActionEvent;
 import docking.widgets.textfield.IntegerTextField;
+import ghidra.program.model.address.Address;
 import resources.ResourceManager;
 
 public class AddBreakpointPanel {
@@ -52,12 +53,16 @@ public class AddBreakpointPanel {
         JButton AddBtn = new JButton("Add");
         AddBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
-                if (!GhidraEmuProvider.breaks.contains(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()))) {
-                    GhidraEmuProvider.breaks.add(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()));
+                Address currentAddress = GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText());
+                if (!GhidraEmuProvider.breaks.contains(currentAddress)) {
+                    GhidraEmuProvider.breaks.add(currentAddress);
                     BreakpointProvider.breakModel.addRow(new Object[] {
                         BreakpointProvider.breakpointIcon, BigInteger.valueOf(AddrTF.getLongValue())
                     });
-                    GhidraEmuPopup.setColor(GhidraEmuProvider.program.getAddressFactory().getAddress(AddrTF.getText()), Color.RED);
+                    GhidraEmuPopup.setColor(currentAddress, Color.RED);
+                    if (GhidraEmuProvider.emuHelper != null){
+                        GhidraEmuProvider.emuHelper.setBreakpoint(currentAddress);
+                    }
                 }
                 frame.dispose();
             }

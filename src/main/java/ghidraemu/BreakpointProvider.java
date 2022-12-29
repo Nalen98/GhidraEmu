@@ -94,9 +94,13 @@ public class BreakpointProvider extends ComponentProvider {
                 public void actionPerformed(ActionContext context) {
                     try {
                         int selected = breakTable.getSelectedRow();
-                        GhidraEmuPopup.unsetColor(GhidraEmuProvider.breaks.get(selected));
-                        GhidraEmuProvider.breaks.remove(selected);
+                        Address currentAddress = GhidraEmuProvider.breaks.get(selected);
+                        GhidraEmuPopup.unsetColor(currentAddress);
+                        GhidraEmuProvider.breaks.remove(currentAddress);
                         breakModel.removeRow(selected);
+                        if (GhidraEmuProvider.emuHelper != null){
+                            GhidraEmuProvider.emuHelper.clearBreakpoint(currentAddress);
+                        }
                     } catch (Exception ex) {}
                 }
             };

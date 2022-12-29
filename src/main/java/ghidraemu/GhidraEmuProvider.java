@@ -67,16 +67,19 @@ public class GhidraEmuProvider extends ComponentProvider {
     public static final String originator = "GhidraEmu";
     public static final String successMsg = "Emulation finished!";
     public static final String sthWrong = "Check out your emulation options, something wrong!";
-    public static final int MALLOC_REGION_SIZE = 0x1000;       
-    public static EmulatorHelper emuHelper;      
+    public static final int MALLOC_REGION_SIZE = 0x1000;          
     public static ArrayList <Address> breaks;
+    public static EmulatorHelper emuHelper;
     public static HashMap<Address, Integer> addressesToUpdate;
     public static HashMap<Address, Integer> userBytes;
     public static HashMap<Address, byte[]> origBytes;
     public static JTextField startTF;
     public static JTextField stopTF;       
-    public static Program program;  
-    public static ArrayList <Address> traced; 
+    public static Program program;    
+    
+    public Address stepOverToAddr;
+    public ArrayList <Address> traced;
+    public EmuRun sw;
     public PluginTool tool;
     public GhidraEmuPlugin plugin;
     public Border classicBorder;    
@@ -88,19 +91,18 @@ public class GhidraEmuProvider extends ComponentProvider {
     public List<FileBytes> binBytes;    
     public int stackSize;
     public Address stackPointer;
-    public Address stackStart;
-    public EmuRun sw;
+    public Address stackStart;    
     public ProgramLocation endLocation;
     public String message;
     public String processorName;
     public String stackName;    
     public boolean isStateClear;
     public boolean isDirty;
+    private boolean hasHeap;
     private ArrayList <ExternalFunction> implementedFuncsPtrs;
     private ArrayList <ExternalFunction> unimplementedFuncsPtrs;
     private ArrayList <ExternalFunction> computedCalls;
-    private ArrayList <String> knownFuncs;
-    private boolean hasHeap;
+    private ArrayList <String> knownFuncs;    
     private JPanel panel;
 
     public GhidraEmuProvider(GhidraEmuPlugin ghidraEmuPlugin, String pluginName) {
@@ -143,16 +145,16 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
 
         @Override
-        protected void process(List <String> msgs) {  
+        protected void process(List <String> msgs) {
             HashSet<String> hset = new HashSet<String>(msgs);
-            hset.remove(null);        	
-            hset.removeAll(printedMessages);    
-            if (!hset.isEmpty()) {        		
+            hset.remove(null);
+            hset.removeAll(printedMessages);
+            if (!hset.isEmpty()) {
             // Compare two HashSets - the new one and messages
-            // If something was added - print        	
-                for (String msg : hset) {	        		
+            // If something was added - print
+                for (String msg : hset) {
                     plugin.console.addMessage(originator, msg);
-                    printedMessages.add(msg);	            	
+                    printedMessages.add(msg);
                 }
             } 
             ArrayList <Address> toPaint = new ArrayList<Address>(traced);
@@ -162,21 +164,21 @@ public class GhidraEmuProvider extends ComponentProvider {
                         return;
                     }
                     GhidraEmuPopup.setColor(addr, Color.getHSBColor(247, 224, 98));
-                }               
-            }   
+                }
+            }
             painted.addAll(toPaint);
-            readEmuRegisters();     	         
+            readEmuRegisters();
         }
     
         @Override
-        protected void done() {    
+        protected void done() {
             if (isDirty) {
                 return;
             }
-            if (endLocation != null){                            
+            if (endLocation != null){
                 try {
                     lpanel.scrollTo(endLocation);
-                    GhidraEmuPopup.setColor(endLocation.getAddress(), Color.getHSBColor(247, 224, 98)); 
+                    GhidraEmuPopup.setColor(endLocation.getAddress(), Color.orange);
                 }
                 catch (Exception ex) {};
             }    
@@ -192,11 +194,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                 if (printedMessages != null) {
                     printedMessages.clear();
                 }
-                if (endLocation != null){
-                    GhidraEmuPopup.setColor(endLocation.getAddress(), Color.orange); 
-                }
                 JOptionPane.showMessageDialog(null, message);
-            }                         
+            }
         }   
         
         public void publishWrap(String msg) {
@@ -465,9 +464,21 @@ public class GhidraEmuProvider extends ComponentProvider {
         readMemFromEmu(isRunning);
         // Exit
         message = sthWrong;
-        stopEmulationLight(pc, isRunning);  
+        stopEmulationLight(pc, isRunning);
     }
     
+    public void addTracedIfNotLast(Address address){
+        // To avoid duplicates
+        if (!traced.isEmpty()){
+            Address lastAddr = traced.get(traced.size()-1);
+            if (!lastAddr.equals(address)){
+                traced.add(address);
+            }
+        } else {
+            traced.add(address);
+        }           
+    }
+
     public boolean initEmulation() {      
         if (!isStateClear){
             // It's a dirty start, user didn't press "Reset" before start
@@ -525,34 +536,22 @@ public class GhidraEmuProvider extends ComponentProvider {
             monitor = new ConsoleTaskMonitor() {
                 @Override
                 public void checkCanceled() throws CancelledException {
-                    Address address = emuHelper.getExecutionAddress(); 
-                    Instruction currentInstruction = program.getListing().getInstructionAt(address);
-                    Address execBeforeJsr = null;
-                    // lets paint the next instruction after jsr (for SuperH)
-                    if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
-                        execBeforeJsr = currentInstruction.getNext().getAddress();                                                
-                    }
-        
-                    if (sw == null){
-                        // run never started
-                        if (!traced.contains(address)){
-                            traced.add(address);
-                            if (execBeforeJsr != null && !traced.contains(execBeforeJsr)){
-                                traced.add(execBeforeJsr);
-                            }
+                    if (sw != null && !sw.isCancelled() && !sw.isDone()){
+                        // just running
+                        Address address = emuHelper.getExecutionAddress(); 
+                        Instruction currentInstruction = program.getListing().getInstructionAt(address);
+                        Address execBeforeJsr = null;
+                        
+                        // lets paint the next instruction after jsr (for SuperH)
+                        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
+                            execBeforeJsr = currentInstruction.getNext().getAddress();
                         }
-                    } else {
-                        if (!sw.isCancelled() && !sw.isDone()){
-                            // just running 
-                            if (!traced.contains(address)){
-                                traced.add(address);                                
-                                if (execBeforeJsr != null && !traced.contains(execBeforeJsr)){
-                                    traced.add(execBeforeJsr);                                    
-                                }
-                                sw.publishWrap(null);
-                            }
-                        }                       
-                    }
+                        addTracedIfNotLast(address);
+                        if (execBeforeJsr != null){
+                            addTracedIfNotLast(execBeforeJsr);
+                        }
+                        sw.publishWrap(null);
+                    }   
                 }
             };
             context = new VarnodeContext(program, new ProgramContextImpl(program.getLanguage()), new ProgramContextImpl(program.getLanguage()));
@@ -825,7 +824,9 @@ public class GhidraEmuProvider extends ComponentProvider {
     }
 
     public void makeStep() {    	
-        Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());
+        Address currentAddress = emuHelper.getExecutionAddress();
+        Instruction currentInstruction = program.getListing().getInstructionAt(currentAddress);
+        GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));
         if (currentInstruction == null) {
             JOptionPane.showMessageDialog(null, "Bad Instruction!");
             resetState();
@@ -833,7 +834,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
         if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
             Address execBeforeJsr = currentInstruction.getNext().getAddress();
-            traced.add(execBeforeJsr);
+            addTracedIfNotLast(execBeforeJsr);
             GhidraEmuPopup.setColor(execBeforeJsr, Color.getHSBColor(247, 224, 98));
         }
         boolean success = false;
@@ -862,9 +863,9 @@ public class GhidraEmuProvider extends ComponentProvider {
             stopEmulationLight(executionAddress, false);
             return;
         }
-        
-        traced.add(executionAddress);
-        GhidraEmuPopup.setColor(executionAddress, Color.getHSBColor(247, 224, 98));
+
+        addTracedIfNotLast(executionAddress);         
+        GhidraEmuPopup.setColor(executionAddress, Color.orange);
         
         if (emuHelper.readRegister(emuHelper.getPCRegister()) == BigInteger.valueOf(0)) {
             message = successMsg;
@@ -903,7 +904,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }  
         
         Address executionAddress = emuHelper.getExecutionAddress();
-        readEmuRegisters();
+    // readEmuRegisters(); (already done)
         if (!readMemFromEmu(true)){
             message = sthWrong;
             stopEmulationLight(executionAddress, true);
@@ -928,7 +929,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
         
         if (!sw.isCancelled()){
-            traced.add(executionAddress);
+            addTracedIfNotLast(executionAddress);            
             sw.publishWrap(null);
         }
         else {
@@ -944,13 +945,19 @@ public class GhidraEmuProvider extends ComponentProvider {
         }        
     }
 
-    public boolean processBreakpoint(Address addr, boolean isRunning) {
+    public boolean processBreakpoint(Address addr, boolean isRunning){
         if (stopEmu != null && addr.equals(stopEmu)) {  
             message = successMsg;
             stopEmulationLight(addr, isRunning);          
             return false;
         }
-        for (ExternalFunction func: implementedFuncsPtrs) {
+        if (stepOverToAddr != null && addr.equals(stepOverToAddr)){
+            emuHelper.clearBreakpoint(stepOverToAddr);
+            stepOverToAddr = null;
+            return false;
+        }
+
+        for (ExternalFunction func: implementedFuncsPtrs){
             if (addr.equals(func.funcPtr)) {
             if (func.function.getName().equals("exit")){ 
                 message = successMsg;
@@ -1018,11 +1025,37 @@ public class GhidraEmuProvider extends ComponentProvider {
         return false;
     }
 
-    public static void setNextPC(){    	
+    public void setNextPC(){    	
         emuHelper.writeRegister(RegisterProvider.PC, program.getListing().getInstructionAt(emuHelper.getExecutionAddress()).getNext().getAddress().getOffset());
         RegisterProvider.setRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.PC));
     }
+
+    public void stepOver(){
+        // 1. set a hidden breakpoint to the next instruction
+        // 2. run (it will stop at bp)
+        // 3. clear breakpoint
+        
+        Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());
+        stepOverToAddr = currentInstruction.getNext().getAddress();
+        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")) {
+            stepOverToAddr = currentInstruction.getNext().getNext().getAddress();
+        }
+        emuHelper.setBreakpoint(stepOverToAddr);
+        sw = new EmuRun();
+        sw.execute();        
+    }
     
+    public void jumpOver() {    	
+        Address badPlace = emuHelper.getExecutionAddress();
+        GhidraEmuPopup.unsetColor(badPlace);
+        setNextPC();
+        Address newPC = emuHelper.getExecutionAddress();
+        GhidraEmuPopup.setColor(newPC, Color.orange);
+        if (traced.contains(badPlace)) {
+            traced.remove(badPlace);
+        }   
+    }
+
     public void stopEmulationLight(Address executionAddress, boolean isRunning){  
         if (emuHelper != null) {
             emuHelper.dispose();
@@ -1034,6 +1067,9 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
         else {
             endLocation = new ProgramLocation(program, traced.get(traced.size()-1));
+            if (endLocation.getAddress().getOffset() == 0) {
+                endLocation = new ProgramLocation(program, traced.get(traced.size()-2));
+            }
         }
         if (!isRunning) {
             try {
@@ -1046,7 +1082,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         isStateClear = false;
     }
 
-    public void resetState() {  
+    public void resetState() {
         //Registers zeroed
         for (String reg: RegisterProvider.regList) {
             try {
@@ -1058,9 +1094,9 @@ public class GhidraEmuProvider extends ComponentProvider {
             int transactionID = -1;
             try {
                 transactionID = program.startTransaction("UpdateStack");
-                program.getMemory().setBytes(stackStart, new byte[stackSize]);                
+                program.getMemory().setBytes(stackStart, new byte[stackSize]);
                 GhidraEmuPlugin.stackProvider.contextChanged();
-            } catch (Exception e) {                
+            } catch (Exception e) {
                 e.printStackTrace();
             }  finally {       
                 program.endTransaction(transactionID, true);
@@ -1077,7 +1113,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }
         startTF.setText("");
         stopTF.setText("");
-        stopEmu = null;        
+        stopEmu = null;
     
         for (Address colorAddress: traced) {
             GhidraEmuPopup.unsetColor(colorAddress);
@@ -1094,7 +1130,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             emuHelper.dispose();
         } 
         catch (Exception ex) {}
-        emuHelper = null;        
+        emuHelper = null;
         message = null;
         if (endLocation != null){
             GhidraEmuPopup.unsetColor(endLocation.getAddress()); 
@@ -1118,7 +1154,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                 if (program.getListing().getDataAt(startAddess).isPointer()){
                     updatePtrUnstable(startAddess);
                 }
-            }
+            } 
         }
 
         // As for the bytes changed by the users, we will assume that they theirself is 
@@ -1152,9 +1188,10 @@ public class GhidraEmuProvider extends ComponentProvider {
         // bytes restored, can clear
         addressesToUpdate.clear();
         origBytes.clear();
-        sw = null;    
-        isStateClear = true;   
-        panel.updateUI();
+        sw = null;
+        isStateClear = true;
+        panel.revalidate();
+        panel.repaint();
     }
     
     public void getExternalAddresses() {
@@ -1204,17 +1241,17 @@ public class GhidraEmuProvider extends ComponentProvider {
 
     public void updatePtrUnstable(Address address) {
         int transactionID = -1;
-        try {                            		
+        try {
             transactionID = program.startTransaction("UpdatePtr"); 
             DataUtilities.createData(program, address, new ByteDataType(), program.getDefaultPointerSize(), false,
                     DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);    
             DataUtilities.createData(program, address, new PointerDataType(), program.getDefaultPointerSize(), false,
                     DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
-        } catch (CodeUnitInsertionException e) {				
+        } catch (CodeUnitInsertionException e) {
             e.printStackTrace();
-        } finally {       
+        } finally {
             program.endTransaction(transactionID, true);
-        }         
+        }
     }
 
     public void ipBack(boolean isRunning) {
@@ -1236,21 +1273,21 @@ public class GhidraEmuProvider extends ComponentProvider {
             Address currentAddress = getAddressfromLong(value.longValue());
             RegisterProvider.setRegister(RegisterProvider.PC, value);
 
-            if (!isRunning) {
-                traced.add(currentAddress);
+            if (!isRunning) {                
+                addTracedIfNotLast(currentAddress);
                 GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));
                 ProgramLocation location = new ProgramLocation(program, currentAddress);
                 lpanel.scrollTo(location);
             }
             else {
                 if (!sw.isCancelled()){
-                    traced.add(currentAddress);
+                    addTracedIfNotLast(currentAddress);
                     sw.publishWrap(null);
                 }   
                 else {
                     return;
                 }
-            }            
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1274,17 +1311,17 @@ public class GhidraEmuProvider extends ComponentProvider {
                     transactionID = program.startTransaction("Mapping Heap");
                     MemoryBlock newBlock = program.getMemory().createInitializedBlock("Heap", heapAddr, MALLOC_REGION_SIZE, (byte) 0,
                         TaskMonitor.DUMMY, false);
-                    newBlock.setPermissions(true, true, true);                   
+                    newBlock.setPermissions(true, true, true);
                 } catch (Exception e) {
                     e.printStackTrace();
-                } finally {       
+                } finally {
                     program.endTransaction(transactionID, true);
-                }                
+                }
                 plugin.console.addMessage(originator, "Heap allocated at 0x70000000. If you need more space go to Memory Map.");
             }
             try {
                 mallocMgr = new MallocManager(heapAddr, MALLOC_REGION_SIZE);
-            } catch (AddressOverflowException e) {                
+            } catch (AddressOverflowException e) {
                 e.printStackTrace();
             }
         }
@@ -1317,7 +1354,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                 emuHelper.writeRegister(returnReg, memAddr.getOffset());
                 RegisterProvider.setRegister(returnReg.getName(), memAddr);
                 break;
-            case "free":                 
+            case "free":
                 mallocMgr.free(operandValueAddr);
                 break;
             case "puts":  
@@ -1328,9 +1365,9 @@ public class GhidraEmuProvider extends ComponentProvider {
                     }
                 } else {
                     plugin.console.addMessage(originator, msg);
-                }                
-                break;            
-            case "strlen":                 
+                }
+                break;
+            case "strlen":
                 int len = 0;
                 while (emuHelper.readMemoryByte(operandValueAddr) != 0) {
                     ++len;
