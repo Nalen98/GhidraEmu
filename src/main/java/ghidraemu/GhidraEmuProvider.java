@@ -43,6 +43,7 @@ import ghidra.program.model.data.DataUtilities;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.lang.InsufficientBytesException;
 import ghidra.program.model.lang.Register;
+import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.listing.Program;
@@ -767,8 +768,9 @@ public class GhidraEmuProvider extends ComponentProvider {
                 } 
 
                 // update ram in gui (not stack)
+                Data data = program.getListing().getDataAt(start);
                 if (!program.getMemory().getBlock(stackName).contains(start) && 
-                    program.getListing().getDataAt(start).isPointer()){
+                   data != null && data.isPointer()){
                         addressesToUpdate.put(start, len);
                     if (!isRunning){
                         // Update bytes if not running but stepping in the disassm listing
@@ -904,7 +906,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         }  
         
         Address executionAddress = emuHelper.getExecutionAddress();
-    // readEmuRegisters(); (already done)
+        readEmuRegisters();
         if (!readMemFromEmu(true)){
             message = sthWrong;
             stopEmulationLight(executionAddress, true);
@@ -959,12 +961,14 @@ public class GhidraEmuProvider extends ComponentProvider {
 
         for (ExternalFunction func: implementedFuncsPtrs){
             if (addr.equals(func.funcPtr)) {
-            if (func.function.getName().equals("exit")){ 
-                message = successMsg;
-                stopEmulationLight(addr, isRunning);                   
-                return false;
-            }             
-                emulateKnownFunc(func, isRunning);
+                if (func.function.getName().equals("exit")){ 
+                    message = successMsg;
+                    stopEmulationLight(addr, isRunning);                   
+                    return false;
+                }
+                if (!emulateKnownFunc(func, isRunning)){
+                    return false;
+                }
                 ipBack(isRunning);
                 return true;
             }
@@ -1009,7 +1013,9 @@ public class GhidraEmuProvider extends ComponentProvider {
                 }
                 for (ExternalFunction Implfunc: implementedFuncsPtrs) {
                     if (Implfunc.function.equals(func.function)) {
-                        emulateKnownFunc(func, isRunning);
+                        if (!emulateKnownFunc(func, isRunning)){
+                            return false;
+                        }
                         setNextPC();
                         return true;
                     }
@@ -1051,6 +1057,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         setNextPC();
         Address newPC = emuHelper.getExecutionAddress();
         GhidraEmuPopup.setColor(newPC, Color.orange);
+        addTracedIfNotLast(newPC);
         if (traced.contains(badPlace)) {
             traced.remove(badPlace);
         }   
@@ -1151,7 +1158,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                 e.printStackTrace();
             } finally {       
                 program.endTransaction(transactionID, true);
-                if (program.getListing().getDataAt(startAddess).isPointer()){
+                Data data = program.getListing().getDataAt(startAddess);
+                if (data != null && data.isPointer()){
                     updatePtrUnstable(startAddess);
                 }
             } 
@@ -1335,9 +1343,9 @@ public class GhidraEmuProvider extends ComponentProvider {
         return program.getAddressFactory().getDefaultAddressSpace().getAddress(offset);
     }
     
-    public void emulateKnownFunc(ExternalFunction func, boolean isRunning) {
+    public boolean emulateKnownFunc(ExternalFunction func, boolean isRunning) {
         BigInteger operandValue = emuHelper.readRegister(RegisterProvider.conventionRegs.get(0));
-        Address operandValueAddr = program.getAddressFactory().getAddress(operandValue.toString(16));
+        Address operandValueAddr = program.getAddressFactory().getAddress(operandValue.toString(16));        
         switch(func.function.getName()) {
             case "malloc": 
                 int size = operandValue.intValue();
@@ -1372,12 +1380,17 @@ public class GhidraEmuProvider extends ComponentProvider {
                 while (emuHelper.readMemoryByte(operandValueAddr) != 0) {
                     ++len;
                     operandValueAddr = operandValueAddr.next();
-                }            
+                }
+                if (emuHelper == null) {
+                	// error during emulate read operation
+                	return false;
+                }
                 FunctionEditorModel fModel = new FunctionEditorModel(null, func.function);
                 Register retReg = fModel.getReturnStorage().getRegister();
                 emuHelper.writeRegister(retReg, len);
                 RegisterProvider.setRegister(retReg.getName(), BigInteger.valueOf(len));
                 break;           
         }
+        return true;
     }
 }
