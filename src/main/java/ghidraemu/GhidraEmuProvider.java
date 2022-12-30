@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.ImageIcon;
@@ -77,7 +79,7 @@ public class GhidraEmuProvider extends ComponentProvider {
     public static JTextField startTF;
     public static JTextField stopTF;       
     public static Program program;    
-    
+    public Map<String, List<String>> delayedBranchInsns;    
     public Address stepOverToAddr;
     public ArrayList <Address> traced;
     public EmuRun sw;
@@ -117,7 +119,12 @@ public class GhidraEmuProvider extends ComponentProvider {
         breaks = new ArrayList <Address> ();
         addressesToUpdate = new HashMap<Address, Integer>();
         userBytes = new HashMap<Address, Integer>();
-        origBytes = new HashMap<Address, byte[]>();        
+        origBytes = new HashMap<Address, byte[]>();     
+        delayedBranchInsns = Map.of("superh", Arrays.asList("jsr"), 
+                                    "mips", Arrays.asList("jr", "jalr", "b", "beq", "bne", "bnel", "bnez", 
+                                                        "beql", "beqz", "blt", "bltu", "bltz", "ble", "bleu", "blez",
+                                                        "bge", "bgeu", "bgez", "bgezal", "bgt", "bgtu", "bgtz", "bczt", 
+                                                        "bczf", "bltzal"));                										
         knownFuncs = new ArrayList <String> (Arrays.asList("malloc", "free", "puts", "strlen", "exit"));
         lpanel = plugin.codeViewer.getListingPanel();    	
         emuHelper = null;
@@ -480,6 +487,22 @@ public class GhidraEmuProvider extends ComponentProvider {
         }           
     }
 
+    public Instruction getNextIfDelaySlot(Instruction currentInstruction){    
+        // for branch delay slot
+    	String mnemonic = currentInstruction.getMnemonicString();    	
+        for (Map.Entry<String, List<String>> entry : delayedBranchInsns.entrySet()) {
+            String proc = entry.getKey();
+            List<String> insns = entry.getValue();
+            for (String instruction : insns){
+                if (processorName.toLowerCase().contains(proc) && 
+                        mnemonic.equalsIgnoreCase(instruction)){
+                            return currentInstruction.getNext();                    
+                }
+            }
+        }
+        return null;
+    }
+
     public boolean initEmulation() {      
         if (!isStateClear){
             // It's a dirty start, user didn't press "Reset" before start
@@ -540,16 +563,14 @@ public class GhidraEmuProvider extends ComponentProvider {
                     if (sw != null && !sw.isCancelled() && !sw.isDone()){
                         // just running
                         Address address = emuHelper.getExecutionAddress(); 
-                        Instruction currentInstruction = program.getListing().getInstructionAt(address);
-                        Address execBeforeJsr = null;
-                        
-                        // lets paint the next instruction after jsr (for SuperH)
-                        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
-                            execBeforeJsr = currentInstruction.getNext().getAddress();
-                        }
+                        Instruction currentInstruction = program.getListing().getInstructionAt(address);                        
                         addTracedIfNotLast(address);
-                        if (execBeforeJsr != null){
-                            addTracedIfNotLast(execBeforeJsr);
+
+                        // delayed branch instructions painting (SuperH, MIPS)                        
+                        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);                       
+                        if (nextInsn != null){
+                            Address execBefore = nextInsn.getAddress();
+                            addTracedIfNotLast(execBefore);
                         }
                         sw.publishWrap(null);
                     }   
@@ -561,7 +582,6 @@ public class GhidraEmuProvider extends ComponentProvider {
             
             // get processor name
             processorName = program.getLanguage().getProcessor().toString();
-            
             for (MemoryBlock block : program.getMemory().getBlocks()) {
                 String blockName = block.getName();
                 if (blockName.toLowerCase().contains("stack")) {
@@ -828,17 +848,21 @@ public class GhidraEmuProvider extends ComponentProvider {
     public void makeStep() {    	
         Address currentAddress = emuHelper.getExecutionAddress();
         Instruction currentInstruction = program.getListing().getInstructionAt(currentAddress);
-        GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));
         if (currentInstruction == null) {
             JOptionPane.showMessageDialog(null, "Bad Instruction!");
             resetState();
             return;
+        }        
+        GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));       
+        
+        // delayed branch painting
+        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
+        if (nextInsn != null){
+            Address execBefore = nextInsn.getAddress();
+            addTracedIfNotLast(execBefore);
+            GhidraEmuPopup.setColor(execBefore, Color.getHSBColor(247, 224, 98));
         }
-        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")){
-            Address execBeforeJsr = currentInstruction.getNext().getAddress();
-            addTracedIfNotLast(execBeforeJsr);
-            GhidraEmuPopup.setColor(execBeforeJsr, Color.getHSBColor(247, 224, 98));
-        }
+        
         boolean success = false;
         try {
             success = emuHelper.step(monitor);
@@ -1041,10 +1065,11 @@ public class GhidraEmuProvider extends ComponentProvider {
         // 2. run (it will stop at bp)
         // 3. clear breakpoint
         
-        Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());
+        Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());        
         stepOverToAddr = currentInstruction.getNext().getAddress();
-        if (processorName.contains("SuperH") && currentInstruction.getMnemonicString().equalsIgnoreCase("jsr")) {
-            stepOverToAddr = currentInstruction.getNext().getNext().getAddress();
+        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
+        if (nextInsn != null) {
+            stepOverToAddr = nextInsn.getNext().getAddress();
         }
         emuHelper.setBreakpoint(stepOverToAddr);
         sw = new EmuRun();
@@ -1264,9 +1289,9 @@ public class GhidraEmuProvider extends ComponentProvider {
 
     public void ipBack(boolean isRunning) {
         try {
-            if (program.getLanguage().getProcessor().toString().equals("AARCH64")) {
+            if (processorName.equals("AARCH64")) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("x30"));
-            } else if (program.getLanguage().getProcessor().toString().toLowerCase().contains("mips")) {
+            } else if (processorName.toLowerCase().contains("mips")) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("ra"));
             } else if (RegisterProvider.regList.contains("LR")) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("LR"));
@@ -1283,7 +1308,7 @@ public class GhidraEmuProvider extends ComponentProvider {
 
             if (!isRunning) {                
                 addTracedIfNotLast(currentAddress);
-                GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));
+                GhidraEmuPopup.setColor(currentAddress, Color.orange);
                 ProgramLocation location = new ProgramLocation(program, currentAddress);
                 lpanel.scrollTo(location);
             }
