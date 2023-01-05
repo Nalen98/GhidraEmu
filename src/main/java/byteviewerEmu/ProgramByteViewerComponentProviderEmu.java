@@ -272,11 +272,12 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         boolean hasStack = false;
         stackName = "Stack";
         try {
-            AddressFactory addrFactory = program.getAddressFactory();  
+            AddressFactory addrFactory = program.getAddressFactory();
+            String processorName = program.getLanguage().getProcessor().toString();
             long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff);	    	
             midStack = addrFactory.getAddress(Long.toHexString(stackOffset));     
             Address stackStart = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));
-            if (program.getLanguage().getProcessor().toString().equalsIgnoreCase("V850")){
+            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){
                 stackStart = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));										
             }
 

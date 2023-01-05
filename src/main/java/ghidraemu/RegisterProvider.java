@@ -71,10 +71,11 @@ public class RegisterProvider extends ComponentProvider {
         regList = new ArrayList <> ();
         programRegisters = program.getProgramContext().getRegisters();  
         String processorName = program.getLanguage().getProcessor().toString();
-        Boolean isV850 = processorName.equalsIgnoreCase("V850");
+        Boolean isV850 = processorName.equalsIgnoreCase("v850");
+        Boolean isSparc = processorName.equalsIgnoreCase("sparc");
         for (Register reg: programRegisters) {
             if (!reg.isHidden()) {
-                if (isV850 || (!isV850 && reg.isBaseRegister())) {            	
+                if (isV850 || isSparc || reg.isBaseRegister()) {            	
                     if (reg.isProgramCounter()) {
                         PC = reg.getName();
                         regList.add(0, reg.getName());
@@ -93,12 +94,15 @@ public class RegisterProvider extends ComponentProvider {
             });
         }
         conventionRegs = new ArrayList <Register> ();
+       
         var varStorage = program.getCompilerSpec().getDefaultCallingConvention().getPotentialInputRegisterStorage(program);
         for (var storageReg: varStorage) {
             Register reg = storageReg.getRegister();
-            if (reg.isBaseRegister() && !reg.getName().contains("_")) {
-                conventionRegs.add(reg);
-            }
+            if (isV850 || isSparc || reg.isBaseRegister()) {
+            	if (!reg.getName().contains("_")) {
+            		conventionRegs.add(reg);
+            	}
+            } 
         }
         regtable = new GhidraTable(regmodel);
         Action action = new AbstractAction() {

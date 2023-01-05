@@ -69,6 +69,8 @@ import resources.ResourceManager;
 public class GhidraEmuProvider extends ComponentProvider {    
     public static final String originator = "GhidraEmu";
     public static final String successMsg = "Emulation finished!";
+    public static final String unknowPC = "Unknow PC!";
+    public static final String badInsn = "Bad Instruction!";
     public static final String sthWrong = "Check out your emulation options, something wrong!";
     public static final int MALLOC_REGION_SIZE = 0x1000;          
     public static ArrayList <Address> breaks;
@@ -101,6 +103,7 @@ public class GhidraEmuProvider extends ComponentProvider {
     public String stackName;    
     public boolean isStateClear;
     public boolean isDirty;
+    public boolean hasBranchDelaySlot;
     private boolean hasHeap;
     private ArrayList <ExternalFunction> implementedFuncsPtrs;
     private ArrayList <ExternalFunction> unimplementedFuncsPtrs;
@@ -120,11 +123,14 @@ public class GhidraEmuProvider extends ComponentProvider {
         addressesToUpdate = new HashMap<Address, Integer>();
         userBytes = new HashMap<Address, Integer>();
         origBytes = new HashMap<Address, byte[]>();     
-        delayedBranchInsns = Map.of("superh", Arrays.asList("jsr"), 
+        delayedBranchInsns = Map.of("superh", Arrays.asList("jsr"),
                                     "mips", Arrays.asList("jr", "jalr", "b", "beq", "bne", "bnel", "bnez", 
                                                         "beql", "beqz", "blt", "bltu", "bltz", "ble", "bleu", "blez",
                                                         "bge", "bgeu", "bgez", "bgezal", "bgt", "bgtu", "bgtz", "bczt", 
-                                                        "bczf", "bltzal"));                										
+                                                        "bczf", "bltzal"),
+                                    "sparc",  Arrays.asList("bpa", "bpn", "bpne", "bpe", "bpg", "bple", "bpge", "bpl", 
+                                                            "bpgu", "bpleu", "bpcc", "bpcs", "bppos", "bpneg", "bpvs", 
+                                                            "brz", "brlez", "brlz", "brnz", "brgz", "brgez", "ret", "call"));                										
         knownFuncs = new ArrayList <String> (Arrays.asList("malloc", "free", "puts", "strlen", "exit"));
         lpanel = plugin.codeViewer.getListingPanel();    	
         emuHelper = null;
@@ -277,9 +283,9 @@ public class GhidraEmuProvider extends ComponentProvider {
                     .addGap(26))
                 .addGroup(gl_panel.createSequentialGroup()
                     .addGap(21)
-                    .addComponent(panel_3, GroupLayout.DEFAULT_SIZE, 102, Short.MAX_VALUE)
+                    .addComponent(panel_3, GroupLayout.PREFERRED_SIZE, 109, Short.MAX_VALUE)
                     .addGap(60)
-                    .addComponent(panel_4, GroupLayout.PREFERRED_SIZE, 109, Short.MAX_VALUE)
+                    .addComponent(panel_4, GroupLayout.PREFERRED_SIZE, 109, Short.MAX_VALUE)                    
                     .addGap(31))
         );
         gl_panel.setVerticalGroup(
@@ -489,14 +495,15 @@ public class GhidraEmuProvider extends ComponentProvider {
 
     public Instruction getNextIfDelaySlot(Instruction currentInstruction){    
         // for branch delay slot
-    	String mnemonic = currentInstruction.getMnemonicString();    	
+        String mnemonic = currentInstruction.getMnemonicString().toLowerCase();
         for (Map.Entry<String, List<String>> entry : delayedBranchInsns.entrySet()) {
             String proc = entry.getKey();
-            List<String> insns = entry.getValue();
-            for (String instruction : insns){
-                if (processorName.toLowerCase().contains(proc) && 
-                        mnemonic.equalsIgnoreCase(instruction)){
-                            return currentInstruction.getNext();                    
+            if (processorName.toLowerCase().contains(proc)){
+                List<String> insns = entry.getValue();
+                for (String instruction : insns){
+                    if (mnemonic.contains(instruction)){
+                        return currentInstruction.getNext();
+                    }
                 }
             }
         }
@@ -566,11 +573,13 @@ public class GhidraEmuProvider extends ComponentProvider {
                         Instruction currentInstruction = program.getListing().getInstructionAt(address);                        
                         addTracedIfNotLast(address);
 
-                        // delayed branch instructions painting (SuperH, MIPS)                        
-                        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);                       
-                        if (nextInsn != null){
-                            Address execBefore = nextInsn.getAddress();
-                            addTracedIfNotLast(execBefore);
+                        // delayed branch instructions painting (SuperH, MIPS, Sparc)
+                        if (hasBranchDelaySlot){
+                            Instruction nextInsn = getNextIfDelaySlot(currentInstruction);                       
+                            if (nextInsn != null){
+                                Address execBefore = nextInsn.getAddress();
+                                addTracedIfNotLast(execBefore);
+                            }
                         }
                         sw.publishWrap(null);
                     }   
@@ -582,6 +591,12 @@ public class GhidraEmuProvider extends ComponentProvider {
             
             // get processor name
             processorName = program.getLanguage().getProcessor().toString();
+
+            // RISC architectures that each have a single branch delay slot
+            hasBranchDelaySlot = processorName.toLowerCase().contains("v850") ||
+                processorName.toLowerCase().contains("mips") || 
+                    processorName.toLowerCase().contains("sparc");
+
             for (MemoryBlock block : program.getMemory().getBlocks()) {
                 String blockName = block.getName();
                 if (blockName.toLowerCase().contains("stack")) {
@@ -593,7 +608,7 @@ public class GhidraEmuProvider extends ComponentProvider {
             stackStart = program.getMemory().getBlock(stackName).getStart();          
             stackSize = (int)program.getMemory().getBlock(stackName).getSize();
             long stackPointerAsLong = stackStart.getOffset() + stackSize/2;
-            if (processorName.equalsIgnoreCase("V850")){
+            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){
                 stackPointerAsLong = 0xFFFFFFFF;
             }
             stackPointer = getAddressfromLong(stackPointerAsLong);            
@@ -774,7 +789,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                         isEnoughSpace = true;
                     }
                 }
-                // Get bytes from emulator and write them to ghidra program memory
+                // Get bytes from emulator and write them to Ghidra program memory
                 int transactionUM = program.startTransaction("UpdateMem");
                 byte [] bytesToWrite = emuHelper.readMemory(start, len);
                 try {
@@ -790,7 +805,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                 // update ram in gui (not stack)
                 Data data = program.getListing().getDataAt(start);
                 if (!program.getMemory().getBlock(stackName).contains(start) && 
-                   data != null && data.isPointer()){
+                data != null && data.isPointer()){
                         addressesToUpdate.put(start, len);
                     if (!isRunning){
                         // Update bytes if not running but stepping in the disassm listing
@@ -845,30 +860,42 @@ public class GhidraEmuProvider extends ComponentProvider {
         GhidraEmuPopup.bytesToPatch.clear();
     }
 
+    public boolean belongsToMem(long value){
+        Address address = getAddressfromLong(value);
+        for (MemoryBlock block : program.getMemory().getBlocks()){
+            if (block.contains(address)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void makeStep() {    	
         Address currentAddress = emuHelper.getExecutionAddress();
         Instruction currentInstruction = program.getListing().getInstructionAt(currentAddress);
-        if (currentInstruction == null) {
-            JOptionPane.showMessageDialog(null, "Bad Instruction!");
-            resetState();
+        if (currentInstruction == null) {            
+            message = badInsn;
+            stopEmulationLight(null, false);
             return;
         }        
         GhidraEmuPopup.setColor(currentAddress, Color.getHSBColor(247, 224, 98));       
         
         // delayed branch painting
-        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
-        if (nextInsn != null){
-            Address execBefore = nextInsn.getAddress();
-            addTracedIfNotLast(execBefore);
-            GhidraEmuPopup.setColor(execBefore, Color.getHSBColor(247, 224, 98));
+        if (hasBranchDelaySlot){
+            Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
+            if (nextInsn != null){
+                Address execBefore = nextInsn.getAddress();
+                addTracedIfNotLast(execBefore);
+                GhidraEmuPopup.setColor(execBefore, Color.getHSBColor(247, 224, 98));
+            }
         }
         
         boolean success = false;
         try {
             success = emuHelper.step(monitor);
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.getStackTrace());
-            resetState();
+        } catch (Exception e) {            
+            message = e.getMessage();
+            stopEmulationLight(null, false);
             return;
         }    
         // Perhaps emulator faced with uninitialized memory during stepping
@@ -893,8 +920,8 @@ public class GhidraEmuProvider extends ComponentProvider {
         addTracedIfNotLast(executionAddress);         
         GhidraEmuPopup.setColor(executionAddress, Color.orange);
         
-        if (emuHelper.readRegister(emuHelper.getPCRegister()) == BigInteger.valueOf(0)) {
-            message = successMsg;
+        if (!belongsToMem(emuHelper.readRegister(emuHelper.getPCRegister()).longValue())) {
+            message = unknowPC;
             stopEmulationLight(null, false);
             return;
         }
@@ -911,17 +938,17 @@ public class GhidraEmuProvider extends ComponentProvider {
         endLocation = null;
         message = null;
         Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());
-        if (currentInstruction == null) {
-            JOptionPane.showMessageDialog(null, "Bad Instruction!");
-            resetState();
+        if (currentInstruction == null) {            
+            message = badInsn;
+            stopEmulationLight(null, true);            
             return;
         }
         boolean success = false;
         try {
             success = emuHelper.run(monitor);
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.getStackTrace());
-            resetState();
+        } catch (Exception e) {            
+            message = e.getMessage();
+            stopEmulationLight(null, true);            
             return;
         }
         // Perhaps emulator faced with uninitialized memory during running
@@ -935,25 +962,17 @@ public class GhidraEmuProvider extends ComponentProvider {
             message = sthWrong;
             stopEmulationLight(executionAddress, true);
             return;
-        }       
-        
-        if (executionAddress.getOffset() == 0) {    
-            message = successMsg;
-            stopEmulationLight(null, true);
-            return;
-        }        
+        }
         if (!success) {           
-            message =  emuHelper.getLastError();
+            message = emuHelper.getLastError();
             stopEmulationLight(executionAddress, true);          
             return;
         }
-
-        if (emuHelper.readRegister(emuHelper.getPCRegister()) == BigInteger.valueOf(0)) {
-            message = successMsg;
+        if (!belongsToMem(emuHelper.readRegister(emuHelper.getPCRegister()).longValue())) {
+            message = unknowPC;
             stopEmulationLight(null, true);
             return;
-        }
-        
+        }        
         if (!sw.isCancelled()){
             addTracedIfNotLast(executionAddress);            
             sw.publishWrap(null);
@@ -1061,15 +1080,22 @@ public class GhidraEmuProvider extends ComponentProvider {
     }
 
     public void stepOver(){
-        // 1. set a hidden breakpoint to the next instruction
+        // 1. set a hidden breakpoint to the next instruction (next-next if delayed branch slot)
         // 2. run (it will stop at bp)
         // 3. clear breakpoint
         
         Instruction currentInstruction = program.getListing().getInstructionAt(emuHelper.getExecutionAddress());        
         stepOverToAddr = currentInstruction.getNext().getAddress();
-        Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
-        if (nextInsn != null) {
-            stepOverToAddr = nextInsn.getNext().getAddress();
+        if (hasBranchDelaySlot){
+            Instruction nextInsn = getNextIfDelaySlot(currentInstruction);
+            if (nextInsn != null) {
+                if (!currentInstruction.getMnemonicString().contains("call")) {
+                    makeStep();
+                    return;
+                } else {
+                    stepOverToAddr = currentInstruction.getNext().getNext().getAddress();
+                }
+            }
         }
         emuHelper.setBreakpoint(stepOverToAddr);
         sw = new EmuRun();
@@ -1094,12 +1120,12 @@ public class GhidraEmuProvider extends ComponentProvider {
             emuHelper = null;
         }
         
-        if (executionAddress != null) {
+        if (executionAddress != null && belongsToMem(executionAddress.getOffset())) {
             endLocation = new ProgramLocation(program, executionAddress);
         }
         else {
             endLocation = new ProgramLocation(program, traced.get(traced.size()-1));
-            if (endLocation.getAddress().getOffset() == 0) {
+            if (!belongsToMem(endLocation.getAddress().getOffset())) {
                 endLocation = new ProgramLocation(program, traced.get(traced.size()-2));
             }
         }
@@ -1277,9 +1303,9 @@ public class GhidraEmuProvider extends ComponentProvider {
         try {
             transactionID = program.startTransaction("UpdatePtr"); 
             DataUtilities.createData(program, address, new ByteDataType(), program.getDefaultPointerSize(), false,
-                    DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);    
+                DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);    
             DataUtilities.createData(program, address, new PointerDataType(), program.getDefaultPointerSize(), false,
-                    DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
+                DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
         } catch (CodeUnitInsertionException e) {
             e.printStackTrace();
         } finally {
@@ -1297,10 +1323,14 @@ public class GhidraEmuProvider extends ComponentProvider {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("LR"));
             } else if (RegisterProvider.regList.contains("lr")) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister("lr"));
+            } else if (processorName.toLowerCase().contains("sparc")) {
+                Address callAddr = getAddressfromLong(emuHelper.readRegister("o7").longValue());
+                Long nextAddr = program.getListing().getInstructionAfter(callAddr).getAddress().getOffset();              
+                emuHelper.writeRegister(RegisterProvider.PC, nextAddr);
             } else if (RegisterProvider.returnReg != null) {
                 emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readRegister(RegisterProvider.returnReg));
-            } else {
-                emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readStackValue(0, 8, false));
+            } else {            	
+                emuHelper.writeRegister(RegisterProvider.PC, emuHelper.readStackValue(0, program.getDefaultPointerSize(), false));
             }
             BigInteger value = emuHelper.readRegister(RegisterProvider.PC);
             Address currentAddress = getAddressfromLong(value.longValue());
@@ -1407,8 +1437,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                     operandValueAddr = operandValueAddr.next();
                 }
                 if (emuHelper == null) {
-                	// error during emulate read operation
-                	return false;
+                    // error during emulate read operation
+                    return false;
                 }
                 FunctionEditorModel fModel = new FunctionEditorModel(null, func.function);
                 Register retReg = fModel.getReturnStorage().getRegister();
