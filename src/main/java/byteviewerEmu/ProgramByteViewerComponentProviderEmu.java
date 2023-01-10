@@ -40,6 +40,7 @@ import ghidra.framework.store.LockException;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressFactory;
 import ghidra.program.model.address.AddressOverflowException;
+import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.Memory;
@@ -74,7 +75,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
     private ByteViewerClipboardProvider clipboardProvider;
     private final boolean isConnected;
     private boolean disposed;   
-    public static Address midStack;
+    public static Address stackStart;
     public static String stackName;
 
     public ProgramByteViewerComponentProviderEmu(PluginTool tool, ByteViewerPluginEmu byteViewerPlugin,
@@ -274,27 +275,40 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         try {
             AddressFactory addrFactory = program.getAddressFactory();
             String processorName = program.getLanguage().getProcessor().toString();
-            long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff);	    	
-            midStack = addrFactory.getAddress(Long.toHexString(stackOffset));     
-            Address stackStart = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));
-            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){
-                stackStart = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));										
+            Memory memory = program.getMemory();
+            long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff); 
+            Address temp = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));
+            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){            	
+                temp = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));										
+            }
+            if (processorName.toLowerCase().contains("avr")){
+                try {
+                    Address sramEnd = memory.getBlock("sram").getEnd();
+                    temp = sramEnd.add(0x1001);                    
+                } catch (Exception ex) {};                
+            }
+            if (processorName.equalsIgnoreCase("8051")){
+                try {
+                    // Should exist in any case
+                	String ramName = "INTMEM";
+                	for (MemoryBlock block : memory.getBlocks()) {
+                		if (block.getStart().getAddressSpace().getName().equals(ramName)) {
+                			if (!block.isInitialized()) {
+                                initStack(memory, block);
+                            }
+                		}
+                	}
+                    stackStart = memory.getBlock("REG_BANK_1").getStart();                    
+                    return;
+                } catch (Exception ex) {};                
             }
 
-            Memory memory = program.getMemory();    	
+            stackStart = temp;                	
             for (MemoryBlock block : memory.getBlocks()) {
                 String blockName = block.getName();                
                 if (blockName.toLowerCase().contains("stack")) {  
                     if (!block.isInitialized()) {
-                        int transactionID = -1;
-                        try {
-                            transactionID = program.startTransaction("Init_stack_bytes");
-                            memory.convertToInitialized(block, (byte) 0);                               
-                        } catch (Exception ex){
-                            ex.printStackTrace();
-                        } finally {       
-                            program.endTransaction(transactionID, true);
-                        } 
+                        initStack(memory, block);
                     }
                     stackName = blockName;
                     hasStack = true;
@@ -319,6 +333,18 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         }
     }  	
         
+    public void initStack(Memory memory, MemoryBlock block){
+        int transactionID = -1;
+        try {
+            transactionID = program.startTransaction("Init_stack_bytes");
+            memory.convertToInitialized(block, (byte) 0);                               
+        } catch (Exception ex){
+            ex.printStackTrace();
+        } finally {       
+            program.endTransaction(transactionID, true);
+        }        
+    }
+
     @Override
     public ProgramLocation getLocation() {
         return currentLocation;

@@ -62,9 +62,11 @@ public class GhidraEmuPopup extends ListingContextAction {
                         unsetColor(start_address);
                     }
                     start_address = context.getLocation().getAddress();                   
-                    setColor(start_address, Color.GREEN);
-                    RegisterProvider.setRegister(RegisterProvider.PC, start_address.getOffsetAsBigInteger());
-                    GhidraEmuProvider.startTF.setText("0x" + Long.toHexString(start_address.getOffset()));
+                    setColor(start_address, Color.GREEN);                    
+                    Long addressableWordOffset = start_address.getAddressableWordOffset();
+                   
+                    RegisterProvider.setRegister(RegisterProvider.PC, BigInteger.valueOf(addressableWordOffset));
+                    GhidraEmuProvider.startTF.setText("0x" + Long.toHexString(addressableWordOffset));
                 }
             }
         };
@@ -84,7 +86,7 @@ public class GhidraEmuPopup extends ListingContextAction {
                     }
                     stop_address = context.getLocation().getAddress();
                     setColor(stop_address, Color.CYAN);
-                    GhidraEmuProvider.stopTF.setText("0x" + Long.toHexString(stop_address.getOffset()));
+                    GhidraEmuProvider.stopTF.setText("0x" + Long.toHexString(stop_address.getAddressableWordOffset()));
                 }
             }
         };
@@ -133,7 +135,7 @@ public class GhidraEmuPopup extends ListingContextAction {
                 if (!GhidraEmuProvider.breaks.contains(address)) {
                     GhidraEmuProvider.breaks.add(address);
                     BreakpointProvider.breakModel.addRow(new Object[] {
-                        BreakpointProvider.breakpointIcon, address.getOffsetAsBigInteger()
+                        BreakpointProvider.breakpointIcon, BigInteger.valueOf(address.getAddressableWordOffset())
                     });
                 }
             }
@@ -151,7 +153,7 @@ public class GhidraEmuPopup extends ListingContextAction {
                 unsetColor(address);
                 GhidraEmuProvider.breaks.remove(address);
                 for (int i = 0; i <BreakpointProvider.breakModel.getRowCount(); i++) {
-                    if (BreakpointProvider.breakModel.getValueAt(i, 1).equals(address.getOffsetAsBigInteger())) {
+                    if (BreakpointProvider.breakModel.getValueAt(i, 1).equals(BigInteger.valueOf(address.getAddressableWordOffset()))) {
                         BreakpointProvider.breakModel.removeRow(i);
                     }
                 }

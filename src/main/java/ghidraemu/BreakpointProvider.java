@@ -63,7 +63,7 @@ public class BreakpointProvider extends ComponentProvider {
         for (Address breakPoint: GhidraEmuProvider.breaks) {
             breakModel.addRow(new Object[] {
                 breakpointIcon,
-                BigInteger.valueOf(breakPoint.getOffset())
+                BigInteger.valueOf(breakPoint.getAddressableWordOffset())
             });
         }
         breakTable = new GhidraTable(breakModel);

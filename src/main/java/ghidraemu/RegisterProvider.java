@@ -161,12 +161,12 @@ public class RegisterProvider extends ComponentProvider {
         int counter = 0;
         for (String reg: regList) {
             if (reg.equals(register)) {
-                if (!BigInteger.valueOf(address.getOffset()).equals(regsVals.get(counter).value)) {
-                    regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), true));
-                    regtable.setValueAt(BigInteger.valueOf(address.getOffset()), counter, 1);
+                if (!BigInteger.valueOf(address.getAddressableWordOffset()).equals(regsVals.get(counter).value)) {
+                        regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getAddressableWordOffset()), true));
+                        regtable.setValueAt(BigInteger.valueOf(address.getAddressableWordOffset()), counter, 1);
                     break;
                 }
-                regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getOffset()), false));
+                regsVals.set(counter, new RegVal(BigInteger.valueOf(address.getAddressableWordOffset()), false));
             }
             counter++;
         }
