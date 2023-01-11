@@ -75,12 +75,19 @@ public class RegisterProvider extends ComponentProvider {
         Boolean isSparc = processorName.equalsIgnoreCase("sparc");
         for (Register reg: programRegisters) {
             if (!reg.isHidden()) {
-                if (isV850 || isSparc || reg.isBaseRegister()) {            	
+                if (isV850 || isSparc || reg.isBaseRegister()) {
                     if (reg.isProgramCounter()) {
                         PC = reg.getName();
                         regList.add(0, reg.getName());
                         continue;
-                    }              
+                    }
+                    int regSize = reg.getNumBytes();
+                    if (isV850) {
+                        if (regSize <= program.getDefaultPointerSize()) {
+                            regList.add(reg.getName());
+                        }
+                        continue;
+                    }
                     regList.add(reg.getName());   
                 }
             }
