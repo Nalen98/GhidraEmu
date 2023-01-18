@@ -35,6 +35,7 @@ import ghidra.app.plugin.core.function.editor.FunctionEditorModel;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.pcode.emulate.EmulateExecutionState;
+import ghidra.pcode.error.LowlevelError;
 import ghidra.pcode.memstate.MemoryFaultHandler;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
@@ -459,7 +460,7 @@ public class GhidraEmuProvider extends ComponentProvider {
         return true;
     }
 
-    public void interrupt(Address pc, String errMsg) {
+    public void interrupt(Address pc, Address address, String errMsg) {
         Boolean isRunning = null;
         if (sw == null ) {
             isRunning = false;
@@ -469,15 +470,41 @@ public class GhidraEmuProvider extends ComponentProvider {
             } else {
                 isRunning = false;
             }
+        }    
+        
+        // Let's try to give this instruction a chance again 
+        // if the address refers to an existing memory area
+        if (address != null) {
+            for (MemoryBlock block : program.getMemory().getBlocks()){
+                if (block.contains(address)) {  
+                    if (!block.isInitialized()) {
+                        int transactionID = -1;
+                        try {
+                            transactionID = program.startTransaction("Initialize the memory block");
+                            program.getMemory().convertToInitialized(block, (byte) 0);                               
+                        } catch (Exception ex){
+                            ex.printStackTrace();
+                        } finally {       
+                            program.endTransaction(transactionID, true);
+                            plugin.console.addMessage(originator, "The memory block " + block.getName() + " was successfully initialized!");                           
+                        }                       
+                        return;
+                    } else {
+                        // Yes, oddities still occur. Let's skip it
+                        return;
+                    }
+                }
+            }
         }
-    
         if (isRunning) {
             if (!sw.isCancelled()){
                 sw.publishWrap(errMsg);
             }
         } else {
             plugin.console.addMessage(originator, errMsg);
-        } 
+        }
+        
+        
         // Update the emulation context before exit
         readEmuRegisters();
         readMemFromEmu(isRunning);
@@ -550,11 +577,11 @@ public class GhidraEmuProvider extends ComponentProvider {
                 Register reg = program.getRegister(address, size);
                 if (reg != null) {
                     String badRegErr = "Uninitialized register READ at " + pc + ": " + reg;
-                    interrupt(pc, badRegErr);
+                    interrupt(pc, address, badRegErr);
                     return true;
                 }
                 String badMemErr ="Uninitialized memory READ at pc = " + pc + " to address = " + address.toString(true) + " with size = " + size;
-                interrupt(pc, badMemErr);
+                interrupt(pc, address, badMemErr);
                 return true;
             }
 
@@ -563,7 +590,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                 Address pc = emuHelper.getExecutionAddress();
                 String access = write ? "written" : "read";
                 String errMsg = "Unknown address " + access + " at " + pc + ": " + address;
-                interrupt(pc, errMsg);
+                interrupt(pc, address, errMsg);
                 return false;
             }
         };
@@ -577,13 +604,13 @@ public class GhidraEmuProvider extends ComponentProvider {
                 public void checkCanceled() throws CancelledException {
                     if (sw != null && !sw.isCancelled() && !sw.isDone()){
                         // just running
-                        Address address = emuHelper.getExecutionAddress();
-                        Instruction currentInstruction = program.getListing().getInstructionAt(address);
+                        Address pc = emuHelper.getExecutionAddress();
+                        Instruction currentInstruction = program.getListing().getInstructionAt(pc);
                         if (currentInstruction == null){
-                            interrupt(address, badInsn);
+                            interrupt(pc, null, badInsn);
                             return;
                         }                      
-                        addTracedIfNotLast(address);
+                        addTracedIfNotLast(pc);
 
                         // delayed branch instructions painting (SuperH, MIPS, Sparc)
                         if (hasBranchDelaySlot){
@@ -788,7 +815,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                                                 } catch (Exception ex){
                                                     ex.printStackTrace();
                                                 } finally {       
-                                                    program.endTransaction(transactionID, true);
+                                                    program.endTransaction(transactionID, true);                                                    
                                                 } 
                                             }
                                             break;
