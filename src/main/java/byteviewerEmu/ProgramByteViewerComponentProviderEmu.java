@@ -31,7 +31,7 @@ import ghidra.app.plugin.core.byteviewer.ByteViewerPlugin;
 import ghidra.app.plugin.core.format.*;
 import ghidra.app.services.ClipboardService;
 import ghidra.app.services.ProgramManager;
-import ghidra.app.util.HighlightProvider;
+import ghidra.app.util.ListingHighlightProvider;
 import ghidra.framework.model.*;
 import ghidra.framework.options.SaveState;
 import ghidra.framework.plugintool.PluginEvent;
@@ -882,12 +882,12 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
     }
 
     @Override
-    public void removeHighlightProvider(HighlightProvider highlightProvider, Program p) {
+    public void removeHighlightProvider(ListingHighlightProvider highlightProvider, Program p) {
         // currently unsupported
     }
 
     @Override
-    public void setHighlightProvider(HighlightProvider highlightProvider, Program p) {
+    public void setHighlightProvider(ListingHighlightProvider highlightProvider, Program p) {
         // currently unsupported
 
     }

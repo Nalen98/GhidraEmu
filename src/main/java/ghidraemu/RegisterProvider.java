@@ -8,13 +8,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.awt.event.ActionEvent;
 import javax.swing.*;
+import generic.theme.GColor;
 import docking.ActionContext;
 import docking.ComponentProvider;
 import docking.action.DockingAction;
 import docking.action.ToolBarData;
 import docking.widgets.table.GTableCellRenderingData;
 import docking.widgets.table.HexBigIntegerTableCellEditor;
-import ghidra.app.plugin.core.debug.gui.DebuggerResources;
 import ghidra.docking.settings.Settings;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.Register;
@@ -54,7 +54,7 @@ public class RegisterProvider extends ComponentProvider {
         setWindowMenuGroup("GhidraEmu");
         actionsCreated = false;
         returnReg = null;
-        registerChangesColor = DebuggerResources.DEFAULT_COLOR_REGISTER_CHANGED;
+        registerChangesColor = new GColor("color.debugger.plugin.resources.register.changed.selected");
     }
 
     /**

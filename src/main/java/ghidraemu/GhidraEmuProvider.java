@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
+
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.ImageIcon;
@@ -28,18 +29,16 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingWorker;
 import javax.swing.border.Border;
+
 import docking.ComponentProvider;
 import docking.widgets.label.GLabel;
 import ghidra.app.emulator.EmulatorHelper;
-import ghidra.app.plugin.core.function.editor.FunctionEditorModel;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.pcode.emulate.EmulateExecutionState;
-import ghidra.pcode.error.LowlevelError;
 import ghidra.pcode.memstate.MemoryFaultHandler;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
-import ghidra.program.model.address.AddressFormatException;
 import ghidra.program.model.address.AddressOverflowException;
 import ghidra.program.model.address.AddressRange;
 import ghidra.program.model.address.AddressSetView;
@@ -1467,8 +1466,9 @@ public class GhidraEmuProvider extends ComponentProvider {
     
     public boolean emulateKnownFunc(ExternalFunction func, boolean isRunning) {
         BigInteger operandValue = emuHelper.readRegister(RegisterProvider.conventionRegs.get(0));
-        Address operandValueAddr = getAddressFromString(operandValue.toString(16));        
-        switch(func.function.getName()) {
+        Address operandValueAddr = getAddressFromString(operandValue.toString(16));
+        Function emuFunc = func.function;
+        switch(emuFunc.getName()) {
             case "malloc": 
                 int size = operandValue.intValue();
                 Address memAddr = null;
@@ -1477,17 +1477,14 @@ public class GhidraEmuProvider extends ComponentProvider {
                 } catch (InsufficientBytesException e) {                
                     e.printStackTrace();
                 }
-
-                FunctionEditorModel model = new FunctionEditorModel(null, func.function);
-                Register returnReg = model.getReturnStorage().getRegister();
-
+                Register returnReg = emuFunc.getReturn().getRegister();         
                 emuHelper.writeRegister(returnReg, memAddr.getAddressableWordOffset());
                 RegisterProvider.setRegister(returnReg.getName(), memAddr);
                 break;
             case "free":
                 mallocMgr.free(operandValueAddr);
                 break;
-            case "puts":  
+            case "puts":
                 String msg = "puts(" + emuHelper.readNullTerminatedString(operandValueAddr, 0x1000) + ")";               
                 if (isRunning) {
                     if (!sw.isCancelled()){
@@ -1506,9 +1503,8 @@ public class GhidraEmuProvider extends ComponentProvider {
                 if (emuHelper == null) {
                     // error during emulate read operation
                     return false;
-                }
-                FunctionEditorModel fModel = new FunctionEditorModel(null, func.function);
-                Register retReg = fModel.getReturnStorage().getRegister();
+                } 
+                Register retReg = emuFunc.getReturn().getRegister();                
                 emuHelper.writeRegister(retReg, len);
                 RegisterProvider.setRegister(retReg.getName(), BigInteger.valueOf(len));
                 break;           
