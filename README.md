@@ -3,53 +3,58 @@
 <p align="center"><img src="./images/logo.png" width="300" height="300">
 
 <br></br>
-This experimental Ghidra plugin allows you to easily deal with native pcode emulation. No scripts anymore, just use it from Ghidra. It can be useful for working with a variety of exotic processors, support for which is not implemented in common emulators.
+This experimental Ghidra plugin allows you to easily deal with native pcode emulation. No scripts are needed anymore, just use it directly from Ghidra. It can be particularly useful for working with a variety of exotic processors that are not supported by common emulators.
 
-If the processor/vm supported by Ghidra for reverse engineering — it can be emulated! Example, eBPF instructions emulation below:
+If the processor/vm is supported by Ghidra for reverse engineering, it can be emulated! For example, eBPF instructions emulation is demonstrated below:
 
  
 ![GhidraEmu](./images/emuExample.gif)
  
 ## What can it do
 
- In fact, the plugin is an extended wrapper around the classes inside the package `ghidra.app.emulator`. Here is what has been implemented:
+ In essence, the plugin is an extended wrapper around the classes inside the `ghidra.app.emulator` package. Here is what has been implemented:
 
-  * Works with all architectures that Ghidra supports, so you can add exotic processors and emulate the such programs
+  * Works with all architectures that Ghidra supports, so you can add exotic processors and emulate them
   * CPU context, stack, and heap emulation
-  * Applying patched bytes through Ghidra GUI to influence the course of emulation
-  * Breakpoints to control emulation process
-  * Displaying of changed bytes during emulation in Ghidra's ByteViewer
-  * Hook some libc functions (but it is still poor)
+  * Applying patched bytes through Ghidra GUI to change the course of emulation
+  * Breakpoints to control the emulation process
+  * Displaying changed bytes during emulation in the ByteViewer
+  * Hooking some libc functions (although this is still poor)
 
-Although PCode emulation ideally implies the unification, most processors need their own approach, so feel free to contact the issue if you encounter errors. I would really like to test all of procs, but it's hardly possible.
+Although PCode emulation ideally implies unification, most processors need their own approach. Feel free to report any issues you encounter. I would really like to test all of processors, but it's hardly possible.
 
- ## What it can't
-  * Step inside external library functions (EmulatorHelper restrictions)
-  * Syscall emulation
-  
- ## All plugin windows in one set
+## What it can't
+
+* Step inside external library functions (EmulatorHelper restrictions)
+* Syscall emulation
+
+## All plugin windows in one set
   
 ![GhidraEmu](./images/Finished.png)
 
 # Features
   
 ### Menu window
-Contains all plugin's windows - Stack view, Registers, Breakpoints view, and Main window.
+
+Contains all plugin windows: Stack view, Registers, Breakpoints view, and Main Window.
  
   ![GhidraEmu menu](./images/menu.png)
   
 ### Popup window
-Contains hotkeys for setting start and end addresses of emulation, breakpoints and applying changed bytes to emulator.
+
+Contains hotkeys for setting the start and end of emulation, breakpoints, and applying changed bytes to the emulator state.
 
  <img src="/images/PopupMenu.png" width="400" height="370" />
  
  #### Registers view
-Change registers as you want. Setting as link register (green arrow) will help emulator let it know which register contains return address. Plugin knows how it goes via stack, lr register, AARCH64 and mips registers. If you have an exotic one, select link register and press the button.
+
+Change registers as you want. Setting the link register (green arrow) will help the emulator understand which register contains the return address. The plugin knows how it works via the stack, lr register, AARCH64, and MIPS registers. If you have an exotic one, select the link register and press the button.
  
  <img src="/images/Registers.gif"/>
  
 #### Stack view
-When you open your program in Сode browser GhidraEmu will map stack space automatically. Stack pointer will be set at the middle of stack range. It was done to allow you to set values at top or bottom stack frames. Set your values as you want. Scroll it if you get some freezes on updating or resetting. During the emulation process, if the program needs more space for the stack, the plugin will allocate it automatically.
+
+When you open your program in the СodeBrowser GhidraEmu will map the stack space automatically. The stack pointer will be set in the middle of the stack range. This allows you to set values at the top or bottom of stack frames. Scroll it if you experience freezes on updating or resetting. During the emulation process, if the program needs more space for the stack, the plugin will allocate it automatically.
  
  <img src="/images/Stack.gif" width="320" height="250"/>
  
@@ -59,63 +64,59 @@ When you open your program in Сode browser GhidraEmu will map stack space autom
  
 #### RAM view
 
-If any bytes change during the emulation, you will see them in the classic ByteViewer. Do not worry, they will be reset to their original values after pressing **"Reset"** button.
+If any bytes change during the emulation, you will see them in the classic ByteViewer. Don't worry, they will be reset to their original values after pressing the **"Reset"** button.
 
  <img src="/images/update_bytes.gif"/>
 
 #### Apply patched bytes
 
-If you changed something, let emulator know about changed bytes (stack updates automatically, no need for it). After changing, select them (will be green), and press this option (or hotkey "M"). 
+If you made changes, let the emulator know about changed bytes (stack updates automatically -- no need for it). After changing, select them (they will be green), and press this option (or use the hotkey "M"). 
  
  ![GhidraEmu apply patched bytes](./images/ApplyPatchedBytes.png) 
  
 #### Console
-Here plugin prints output information. For example, emulation error messages like that:
+
+Here plugin prints output information. For example, emulation error messages like this:
  
   ![GhidraEmu console](./images/Console.png)
 
 ### New feature - Jump Over
 
-Jump over feature allows you to jump ahead one instruction if you don't want to emulate the current one for some reason. Since the emulation process will be aborted if an attempt to read uninitialized memory is detected, this feature allows you to bypass it, so nice. Look at an example. Here's one of the first instructions in many x86_64 programs, canary stack saving:
+The "Jump Over" feature allows you to jump ahead one instruction if you don't want to emulate the current one for some reason. Since the emulation process will be aborted if an attempt to read uninitialized memory is detected, this feature allows you to bypass it. Look at an example. Here's one of the first instructions in many x86_64 programs, canary stack saving:
 
 `MOV RAX, qword ptr FS:[0x28]`
 
-We'll just try to cheat a little and jump over it by increasing the PC value. To do this, stop at the instruction you don't want to emulate and press `J` hotkey. Otherwise, stepping further, we would get an uninitialized memory read error.
+We'll just try to cheat a little and jump over it by increasing the PC value. To do this, stop at the instruction you don't want to emulate and press `J` hotkey. Otherwise, stepping further would result in an uninitialized memory read error.
 
 ![Jump Over](./images/JumpOver.gif)
 
 ### New feature - Step Over
 
-If you stop at an instruction that leads to a subroutine (internal call) and you want to emulate everything up to the next instruction (classic "step over"), press the `F6` hotkey and it will certainly happen:
+If you stop at an instruction that leads to a subroutine (internal call) and you want to emulate everything up to the next instruction (classic "step over"), press the `F6` hotkey, and it will certainly happen:
 
 ![Step Over](./images/StepOver.gif)
 
 # Before you start
 **A few important points to consider**:
-* Don't forget to analyze your program in Ghidra, emulator depends on it.
+* Don't forget to analyze your program in Ghidra, the emulator depends on it.
 * As already mentioned, set the link register if you have an exotic processor/vm.
-* If the processor of your binary needs certain memory segments according to the specification, don't forget to create them in the Ghidra MemoryMap Window and initialize them to zeros. Otherwise, the emulator will complain about unknown memory spaces during read/write and stop the emualtion process. If the memory block exists, but is not initialized with zeros and is needed by the emulator, the plugin will try to make it initialized so that the emulation continues.
-* If you have changed any bytes through the ByteViewer, the plugin won't restore them to their original values during resetting emulation state.
-* Before closing the project in Ghidra, you should press the "Reset" button and reset the state of the last emulation, if such an action was not performed. This is important, because at the moment of closing, transactions for repainting traced instructions in the listing will not be executed, as well as transactions for restoring program bytes after emulation. This can lead in the future not only to the contemplation of the "old yellow parrot", which is the least problem, but the bytes modified as a result of emulation will remain as such and will not return to their original values (unless the project is rolled back in Ghidra, of course).
+* If the processor of your binary needs certain memory segments according to the specification, don't forget to create them in Ghidra MemoryMap Window and initialize them with zeros. Otherwise, the emulator will complain about unknown memory spaces during read/write operations and will stop the emulation process. If a memory block exists but is not initialized with zeros and is needed by the emulator, the plugin will try to make it initialized so that the emulation continues.
+* If you have changed any bytes through the ByteViewer, the plugin won't restore them to their original values during resetting the emulation state.
+* Before closing the project in Ghidra, you should press the "Reset" button and reset the state of the last emulation if it hasn't been done yet. This is important because at the moment of closing, transactions of repainting traced instructions in the Listing will not be executed, as well as transactions of restoring program bytes after emulation. This can lead not only to the beholding of the "old yellow parrot", which is the least problem, but also to the modified bytes remaining as such and not returning to their original values (unless the project is rolled back in Ghidra, of course).
 
 # Installation
   
-- Download Release version of extension and install it in Ghidra `File → Install Extensions...` 
-- Use gradle to build extension: `GHIDRA_INSTALL_DIR=${GHIDRA_HOME} gradle` and use Ghidra to install it: `File → Install Extensions...` 
-- In CodeBrowser go to `File → Configure → Experimental` and select checkbox.
+- Download the release version of the extension and install it in Ghidra using `File → Install Extensions...` 
+
+- Use gradle to build the extension: `GHIDRA_INSTALL_DIR=${GHIDRA_HOME} gradle` and use Ghidra to install it: `File → Install Extensions...` 
+
+- In the CodeBrowser, go to `File → Configure → Experimental` and select the checkbox.
 
 ## Feedback
-Got some bugs while using the plugin or have ideas for improvements? Don't be shy to open new Issue and I'll figure it out.
+
+Encountered any bugs while using the plugin or have ideas for improvements? Don't be shy to open new issue and I'll figure out.
  
 ## Future work  
  
-EmulatorHelper restrictions don't allow using program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here. 
-  
-
+EmulatorHelper restrictions don't allow using program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here.
  
-
-
-
-
-
-

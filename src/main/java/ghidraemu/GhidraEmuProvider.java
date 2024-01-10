@@ -1,5 +1,6 @@
 package ghidraemu;
 
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -1277,11 +1278,11 @@ public class GhidraEmuProvider extends ComponentProvider {
             } 
         }
 
-        // As for the bytes changed by the users, we will assume that they theirself is 
+        // As for bytes changed by users, we will assume that they're 
         // responsible for their own changes
-        // getOriginalBytes#FileBytes is the nice Ghidra API for some cases but, e.g. if 
-        // we're dealing with addresses that contain bytes, which are the pointers
-        // getOriginalBytes#FileBytes won't help us and returns zero-bytes which will break the user's project
+        // getOriginalBytes#FileBytes is propriate Ghidra API for some cases but, e.g. if 
+        // we're dealing with addresses that contain bytes, which are pointers,
+        // getOriginalBytes#FileBytes won't help us and will return zero-bytes that will break the user's project
 
         // You can uncomment at your own risk
         /*

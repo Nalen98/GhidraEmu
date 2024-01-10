@@ -1154,6 +1154,11 @@ class CompositePanel extends JPanel implements IndexedScrollable, IndexScrollLis
 	}
 
 	@Override
+	public void mouseWheelMoved(double preciseWheelRotation, boolean isHorizontal) {
+		indexPanel.mouseWheelMoved(preciseWheelRotation, isHorizontal);
+	}
+
+	@Override
 	public boolean isUniformIndex() {
 		return true;
 	}
