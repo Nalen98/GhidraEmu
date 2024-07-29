@@ -4,9 +4,9 @@
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
 * You may obtain a copy of the License at
-* 
+*
 *      http://www.apache.org/licenses/LICENSE-2.0
-* 
+*
 * Unless required by applicable law or agreed to in writing, software
 * distributed under the License is distributed on an "AS IS" BASIS,
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -70,11 +70,11 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
     protected Program program;
     protected ProgramSelection currentSelection;
     protected ProgramSelection currentHighlight;
-    protected ProgramLocation currentLocation;		
+    protected ProgramLocation currentLocation;
     private ClipboardService clipboardService;
     private ByteViewerClipboardProvider clipboardProvider;
     private final boolean isConnected;
-    private boolean disposed;   
+    private boolean disposed;
     public static Address stackStart;
     public static String stackName;
 
@@ -106,7 +106,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
 
     @Override
     public boolean isSnapshot() {
-        // we are a snapshot when we are 'disconnected' 
+        // we are a snapshot when we are 'disconnected'
         return !isConnected();
     }
 
@@ -131,7 +131,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
             if (program == null) {
                 doSetProgram(currentLocation.getProgram());
             }
-            
+
             setLocation(currentLocation);
         }
         if (currentSelection != null) {
@@ -237,7 +237,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         }
 
         program = newProgram;
-                        
+
         clipboardProvider.setProgram(newProgram);
         for (ByteViewerComponent byteViewerComponent : viewMap.values()) {
             DataFormatModel dataModel = byteViewerComponent.getDataModel();
@@ -250,7 +250,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
             newProgram.addListener(this);
         }
         setStack();
-        
+
         setByteBlocks(null);
         updateTitle();
     }
@@ -276,16 +276,16 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
             AddressFactory addrFactory = program.getAddressFactory();
             String processorName = program.getLanguage().getProcessor().toString();
             Memory memory = program.getMemory();
-            long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff); 
+            long stackOffset = ((program.getMinAddress().getAddressSpace().getMaxAddress().getOffset()>>> 5) - 0x7fff);
             Address temp = addrFactory.getAddress(Long.toHexString(stackOffset - 0x1000));
-            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){            	
-                temp = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));										
+            if (processorName.equalsIgnoreCase("v850") || processorName.equalsIgnoreCase("sparc")){
+                temp = addrFactory.getAddress(Long.toHexString(0xFFFFFFFF - 0x1FFF));
             }
             if (processorName.toLowerCase().contains("avr")){
                 try {
                     Address sramEnd = memory.getBlock("sram").getEnd();
-                    temp = sramEnd.add(0x1001);                    
-                } catch (Exception ex) {};                
+                    temp = sramEnd.add(0x1001);
+                } catch (Exception ex) {};
             }
             if (processorName.equalsIgnoreCase("8051")){
                 try {
@@ -298,15 +298,15 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
                             }
                 		}
                 	}
-                    stackStart = memory.getBlock("REG_BANK_1").getStart();                    
+                    stackStart = memory.getBlock("REG_BANK_1").getStart();
                     return;
-                } catch (Exception ex) {};                
+                } catch (Exception ex) {};
             }
 
-            stackStart = temp;                	
+            stackStart = temp;
             for (MemoryBlock block : memory.getBlocks()) {
-                String blockName = block.getName();                
-                if (blockName.toLowerCase().contains("stack")) {  
+                String blockName = block.getName();
+                if (blockName.toLowerCase().contains("stack")) {
                     if (!block.isInitialized()) {
                         initStack(memory, block);
                     }
@@ -315,34 +315,34 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
                     break;
                 }
             }
-            if (!hasStack) {	
+            if (!hasStack) {
             	int transactionID = -1;
                 try {
-                	transactionID = program.startTransaction("Mapping");         			
+                	transactionID = program.startTransaction("Mapping");
                     MemoryBlock newBlock = memory.createInitializedBlock(stackName, stackStart, 0x2000, (byte) 0,
                         TaskMonitor.DUMMY, false);
                     newBlock.setPermissions(true, true, true);
-                } catch (Exception e) { 
+                } catch (Exception e) {
                     e.printStackTrace();
-                } finally {       
+                } finally {
                     program.endTransaction(transactionID, true);
-                }           
+                }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }  	
-        
+    }
+
     public void initStack(Memory memory, MemoryBlock block){
         int transactionID = -1;
         try {
             transactionID = program.startTransaction("Init_stack_bytes");
-            memory.convertToInitialized(block, (byte) 0);                               
+            memory.convertToInitialized(block, (byte) 0);
         } catch (Exception ex){
             ex.printStackTrace();
-        } finally {       
+        } finally {
             program.endTransaction(transactionID, true);
-        }        
+        }
     }
 
     @Override
@@ -446,11 +446,6 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         return tool.isVisible(this);
     }
 
-    @Override
-    public void requestFocus() {
-        panel.getCurrentComponent().requestFocus();
-        tool.toFront(this);
-    }
 
 //==================================================================================================
 // End Navigatable interface methods */
@@ -671,7 +666,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
         if (plugin.isDisposed() == true) {
             return;
         }
-    
+
         panel.setByteBlocks(blockSet);
     }
 
@@ -688,7 +683,7 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
     void updateLocation(ByteBlock block, BigInteger blockOffset, int column, boolean export) {
         ProgramLocationPluginEvent event =
             blockSet.getPluginEvent(plugin.getName(), block, blockOffset, column);
-        if (event == null) { 
+        if (event == null) {
                 this.plugin.dispose();
                 return;
             }
@@ -839,17 +834,17 @@ public class ProgramByteViewerComponentProviderEmu extends ByteViewerComponentPr
             newProvider.readConfigState(saveState);
 
             tool.showComponentProvider(newProvider, true);
-            
-            
+
+
             newProvider.doSetProgram(program);
-            
-            
+
+
             newProvider.setLocation(currentLocation);
             newProvider.setSelection(currentSelection, false);
             newProvider.setHighlight(currentHighlight);
             ViewerPosition viewerPosition = panel.getViewerPosition();
             newProvider.panel.setViewerPosition(viewerPosition);
-            
+
         }
     }
 

@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ import java.awt.*;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.List;
+import generic.theme.*;
 
 import javax.swing.JComponent;
 
@@ -50,6 +51,7 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 	private static final String BYTES_PER_LINE_NAME = "Bytes Per Line";
 	private static final String OFFSET_NAME = "Offset";
 	static final int DEFAULT_NUMBER_OF_CHARS = 8;
+	static final String DEFAULT_FONT_ID = "font.byteviewer";
 
 	static final Font DEFAULT_FONT = new Font("Monospaced", Font.PLAIN, 12);
 	static final int DEFAULT_BYTES_PER_LINE = 8;
@@ -160,27 +162,8 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 	public void optionsChanged(ToolOptions options, String optionName, Object oldValue,
 			Object newValue) {
 		if (options.getName().equals("ByteViewer")) {
-
-			if (optionName.equals(OPTION_CURRENT_VIEW_CURSOR_COLOR)) {
-				panel.setCurrentCursorColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_CURSOR_COLOR)) {
-				panel.setCursorColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_CURRENT_LINE_COLOR)) {
-				panel.setCurrentCursorLineColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_EDIT_COLOR)) {
-				panel.setEditColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_SEPARATOR_COLOR)) {
-				panel.setSeparatorColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_NONFOCUS_CURSOR_COLOR)) {
-				panel.setNonFocusCursorColor((Color) newValue);
-			}
-			else if (optionName.equals(OPTION_FONT)) {
-				setFont(SystemUtilities.adjustForFontSizeOverride((Font) newValue));
+			if (optionName.equals(OPTION_FONT)) {
+				setFont((Font) newValue);
 			}
 		}
 		else if (options.getName().equals(CATEGORY_BROWSER_FIELDS)) {
@@ -243,8 +226,7 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 		Color cursorLineColor = opt.getColor(OPTION_CURRENT_LINE_COLOR, DEFAULT_CURSOR_LINE_COLOR);
 		panel.setCurrentCursorLineColor(cursorLineColor);
 
-		Font font =
-			SystemUtilities.adjustForFontSizeOverride(opt.getFont(OPTION_FONT, DEFAULT_FONT));
+		Font font = Gui.getFont(DEFAULT_FONT_ID);
 		FontMetrics fm = panel.getFontMetrics(font);
 
 		panel.restoreConfigState(fm, editColor);
@@ -421,14 +403,14 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 		try {
 			updateManager.dispose();
 			updateManager = null;
-	
+
 			if (blockSet != null) {
 				blockSet.dispose();
 			}
-	
+
 			blockSet = null;
 		}
-		catch (Exception ex) {} 
+		catch (Exception ex) {}
 	}
 
 	public Set<String> getCurrentViews() {
@@ -454,7 +436,7 @@ public abstract class ByteViewerComponentProviderEmu extends ComponentProviderAd
 
 	/**
 	 * Set the status info on the tool.
-	 * 
+	 *
 	 * @param message non-html text to display
 	 */
 	void setStatusMessage(String message) {

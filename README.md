@@ -7,10 +7,10 @@ This experimental Ghidra plugin allows you to easily deal with native pcode emul
 
 If the processor/vm is supported by Ghidra for reverse engineering, it can be emulated! For example, eBPF instructions emulation is demonstrated below:
 
- 
+
 ![GhidraEmu](./images/emuExample.gif)
- 
-## What can it do
+
+## What it can do
 
  In essence, the plugin is an extended wrapper around the classes inside the `ghidra.app.emulator` package. Here is what has been implemented:
 
@@ -29,39 +29,39 @@ Although PCode emulation ideally implies unification, most processors need their
 * Syscall emulation
 
 ## All plugin windows in one set
-  
+
 ![GhidraEmu](./images/Finished.png)
 
 # Features
-  
+
 ### Menu window
 
 Contains all plugin windows: Stack view, Registers, Breakpoints view, and Main Window.
- 
+
   ![GhidraEmu menu](./images/menu.png)
-  
+
 ### Popup window
 
 Contains hotkeys for setting the start and end of emulation, breakpoints, and applying changed bytes to the emulator state.
 
  <img src="/images/PopupMenu.png" width="400" height="370" />
- 
+
  #### Registers view
 
 Change registers as you want. Setting the link register (green arrow) will help the emulator understand which register contains the return address. The plugin knows how it works via the stack, lr register, AARCH64, and MIPS registers. If you have an exotic one, select the link register and press the button.
- 
+
  <img src="/images/Registers.gif"/>
- 
+
 #### Stack view
 
 When you open your program in the СodeBrowser GhidraEmu will map the stack space automatically. The stack pointer will be set in the middle of the stack range. This allows you to set values at the top or bottom of stack frames. Scroll it if you experience freezes on updating or resetting. During the emulation process, if the program needs more space for the stack, the plugin will allocate it automatically.
- 
+
  <img src="/images/Stack.gif" width="320" height="250"/>
- 
+
 #### Breakpoints view
- 
+
  <img src="/images/Breaks.gif"/>
- 
+
 #### RAM view
 
 If any bytes change during the emulation, you will see them in the classic ByteViewer. Don't worry, they will be reset to their original values after pressing the **"Reset"** button.
@@ -70,14 +70,14 @@ If any bytes change during the emulation, you will see them in the classic ByteV
 
 #### Apply patched bytes
 
-If you made changes, let the emulator know about changed bytes (stack updates automatically -- no need for it). After changing, select them (they will be green), and press this option (or use the hotkey "M"). 
- 
- ![GhidraEmu apply patched bytes](./images/ApplyPatchedBytes.png) 
- 
+If you made changes, let the emulator know about changed bytes (stack updates automatically -- no need for it). After changing, select them (they will be green), and press this option (or use the hotkey "M").
+
+ ![GhidraEmu apply patched bytes](./images/ApplyPatchedBytes.png)
+
 #### Console
 
 Here plugin prints output information. For example, emulation error messages like this:
- 
+
   ![GhidraEmu console](./images/Console.png)
 
 ### New feature - Jump Over
@@ -105,18 +105,15 @@ If you stop at an instruction that leads to a subroutine (internal call) and you
 * Before closing the project in Ghidra, you should press the "Reset" button and reset the state of the last emulation if it hasn't been done yet. This is important because at the moment of closing, transactions of repainting traced instructions in the Listing will not be executed, as well as transactions of restoring program bytes after emulation. This can lead not only to the beholding of the "old yellow parrot", which is the least problem, but also to the modified bytes remaining as such and not returning to their original values (unless the project is rolled back in Ghidra, of course).
 
 # Installation
-  
-- Download the release version of the extension and install it in Ghidra using `File → Install Extensions...` 
 
-- Use gradle to build the extension: `GHIDRA_INSTALL_DIR=${GHIDRA_HOME} gradle` and use Ghidra to install it: `File → Install Extensions...` 
+1. Use gradle to build the extension: `GHIDRA_INSTALL_DIR=${GHIDRA_HOME} gradle` and use Ghidra to install it: `File → Install Extensions...`
 
-- In the CodeBrowser, go to `File → Configure → Experimental` and select the checkbox.
+2. In the CodeBrowser, go to `File → Configure → Miscellaneous` and select the checkbox for GhidraEmu plugin.
 
 ## Feedback
 
 Encountered any bugs while using the plugin or have ideas for improvements? Don't be shy to open new issue and I'll figure out.
- 
+
 ## Future work  
- 
+
 EmulatorHelper restrictions don't allow using program space in another. So your external shared library, for example, will never know about program memory space and vice versa. So you can't emulate it as one process with one memory space. Let me know if I'm missing something here.
- 
