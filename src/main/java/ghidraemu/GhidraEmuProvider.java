@@ -624,7 +624,7 @@ public class GhidraEmuProvider extends ComponentProvider {
                     }
                 }
             };
-            context = new VarnodeContext(program, new ProgramContextImpl(program.getLanguage()), new ProgramContextImpl(program.getLanguage()));
+            context = new VarnodeContext(program, new ProgramContextImpl(program.getLanguage()), new ProgramContextImpl(program.getLanguage()), true);
             message = null;
             endLocation = null;     
             

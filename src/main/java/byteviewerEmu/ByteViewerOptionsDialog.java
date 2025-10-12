@@ -82,10 +82,10 @@ public class ByteViewerOptionsDialog extends DialogComponentProvider
 			if (program != null) {
 				addressInputField = new AddressInput();
 				addressInputField.setAddressFactory(program.getAddressFactory());
-				addressInputField.showAddressSpaceCombo(false);
+				//addressInputField.showAddressSpaceCombo(false);
 				addressInputField.setAddress(getAlignmentAddress());
 				panel.add(addressInputField);
-				addressInputField.addChangeListener(this);
+				addressInputField.addActionListener(this);
 			}
 		}
 
@@ -210,13 +210,13 @@ public class ByteViewerOptionsDialog extends DialogComponentProvider
 	}
 
 	private boolean hasValidFieldValues() {
-		if (addressInputField.getValue().length() == 0) {
+		if (addressInputField.getText().length() == 0) {
 			setStatusText("Enter an alignment address");
 			return false;
 		}
 		Address alignmentAddress = addressInputField.getAddress();
 		if (alignmentAddress == null) {
-			setStatusText("Invalid alignment address:" + addressInputField.getValue());
+			setStatusText("Invalid alignment address:" + addressInputField.getText());
 			return false;
 		}
 		BigInteger bytesPerLine = bytesPerLineField.getValue();
