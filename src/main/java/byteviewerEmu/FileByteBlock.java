@@ -91,6 +91,16 @@ class FileByteBlock implements ByteBlock {
 		return 0;
 	}
 
+	public short getShort(BigInteger bigIndex) throws ByteBlockAccessException {
+		int index = bigIndex.intValue();
+		if (index <buf.length) {
+			byte[] b = new byte[2];
+			System.arraycopy(buf, index, b, 0, b.length);
+			return converter.getShort(b);
+		}
+		return 0;
+	}
+
 	/* (non-Javadoc)
 	 * @see ghidra.app.plugin.core.format.ByteBlock#getLong(int)
 	 */
@@ -126,6 +136,15 @@ class FileByteBlock implements ByteBlock {
 		}
 	}
 
+	public void setShort(BigInteger bigIndex, short value) throws ByteBlockAccessException {
+		int index = bigIndex.intValue();
+		if (index < buf.length) {
+			byte[] b = new byte[2];
+			converter.putInt(b, 0, value);
+			System.arraycopy(b, 0, buf, index, b.length);
+		}
+	}
+
 	/* (non-Javadoc)
 	 * @see ghidra.app.plugin.core.format.ByteBlock#setLong(int, long)
 	 */
@@ -138,6 +157,8 @@ class FileByteBlock implements ByteBlock {
 		}
 
 	}
+
+
 
 	/* (non-Javadoc)
 	 * @see ghidra.app.plugin.core.format.ByteBlock#isEditable()

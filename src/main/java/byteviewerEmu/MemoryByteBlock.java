@@ -211,6 +211,17 @@ public class MemoryByteBlock implements ByteBlock {
 		}
 	}
 
+	@Override
+	public short getShort(BigInteger index) throws ByteBlockAccessException {
+		Address addr = getAddress(index);
+		try {
+			return memory.getShort(addr, bigEndian);
+		}
+		catch (MemoryAccessException e) {
+			throw new ByteBlockAccessException(e.getMessage());
+		}
+	}
+
 	/**
 	 * Set the int at the given index.
 	 * @param index byte index
@@ -225,6 +236,18 @@ public class MemoryByteBlock implements ByteBlock {
 		checkEditsAllowed(addr, 4);
 		try {
 			memory.setInt(addr, value, bigEndian);
+		}
+		catch (MemoryAccessException e) {
+			throw new ByteBlockAccessException(e.getMessage());
+		}
+	}
+
+	@Override
+	public void setShort(BigInteger index, short value) throws ByteBlockAccessException {
+		Address addr = getAddress(index);
+		checkEditsAllowed(addr, 2);
+		try {
+			memory.setShort(addr, value, bigEndian);
 		}
 		catch (MemoryAccessException e) {
 			throw new ByteBlockAccessException(e.getMessage());
